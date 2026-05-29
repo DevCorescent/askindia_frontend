@@ -86,7 +86,11 @@ export const Login: React.FC = () => {
         const result = await authService.signIn(demoEmail, demoPassword);
         if (result.success && result.user) {
           setCurrentUser(result.user);
-          // Navigate immediately — useSupabaseInit loads the rest via onAuthStateChange
+          // Fire-and-forget: load user data now (onAuthStateChange fires later
+          // when the client discovers the localStorage session we wrote)
+          useAppStore.getState().loadFromSupabase(
+            result.user.id, result.user.role, result.user.storeId ?? null
+          ).catch(() => {});
           navigateByRole(result.user.role, navigate);
         } else {
           setError(result.error ?? 'Demo login failed.');
@@ -125,8 +129,12 @@ export const Login: React.FC = () => {
         const result = await authService.signIn(email.trim(), password);
         if (result.success && result.user) {
           setCurrentUser(result.user);
+          // Fire-and-forget: load user data now (onAuthStateChange fires later
+          // when the client discovers the localStorage session we wrote)
+          useAppStore.getState().loadFromSupabase(
+            result.user.id, result.user.role, result.user.storeId ?? null
+          ).catch(() => {});
           trackActivity('login', { method: 'email', role: result.user.role }, '/login');
-          // Navigate immediately — useSupabaseInit loads the rest via onAuthStateChange
           navigateByRole(result.user.role, navigate);
         } else {
           setError(result.error ?? 'Login failed. Please check your credentials.');

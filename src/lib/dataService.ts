@@ -41,39 +41,80 @@ export const authService = {
 
   async signIn(email: string, password: string): Promise<{ success: boolean; user?: User; error?: string }> {
     const UNAVAILABLE = 'Unable to reach the server. Please try again in a moment.';
+    const baseUrl: string = (supabase as unknown as { supabaseUrl: string }).supabaseUrl;
+    const apiKey:  string = (supabase as unknown as { supabaseKey: string }).supabaseKey;
 
-    // Clear any stale/expired session first — a leftover token can cause the client
-    // to hang on refresh before processing the new sign-in request.
-    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-
-    // Auth — 10 s timeout so a paused Supabase project never hangs the UI
-    let authResult: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+    // ── Step 0: clear stale auth tokens from localStorage ────────────────────
+    // A stale/expired refresh token causes the supabase-js client to run a
+    // continuous auto-refresh retry loop that holds the internal Web Lock.
+    // Every subsequent auth call (signInWithPassword, setSession) waits for that
+    // lock and hangs forever. Clearing the token synchronously breaks the loop
+    // before we make any network call.
     try {
-      authResult = await withTimeout(
-        supabase.auth.signInWithPassword({ email, password }),
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
+        .forEach(k => localStorage.removeItem(k));
+    } catch { /* no localStorage in SSR / worker context */ }
+
+    // ── Step 1: authenticate via direct HTTP (no JS-client lock) ─────────────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let authJson: any;
+    try {
+      const res = await withTimeout(
+        fetch(`${baseUrl}/auth/v1/token?grant_type=password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: apiKey },
+          body: JSON.stringify({ email, password }),
+        }).then(r => r.json()),
         10000
       );
+      authJson = res;
     } catch {
       return { success: false, error: UNAVAILABLE };
     }
 
-    const { data, error } = authResult;
-    if (error || !data.user) return { success: false, error: error?.message ?? 'Login failed.' };
+    if (!authJson?.access_token) {
+      return {
+        success: false,
+        error: authJson?.error_description ?? authJson?.message ?? 'Login failed. Check your credentials.',
+      };
+    }
 
-    // Profile fetch — 8 s timeout
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let profileRes: { data: any; error: any };
+    // ── Step 2: write session directly to localStorage (no Web Lock needed) ──
+    // supabase-js v2 stores sessions under the key "sb-{projectRef}-auth-token".
+    // Writing it here lets the JS client (and onAuthStateChange) pick it up
+    // on the next storage event / visibility change without calling setSession(),
+    // which would block on the Web Lock the same way signInWithPassword does.
     try {
-      profileRes = await withTimeout(
-        supabase.from('profiles').select('*').eq('id', data.user.id).single(),
+      const projectRef = baseUrl.split('//')[1]?.split('.')[0] ?? '';
+      localStorage.setItem(`sb-${projectRef}-auth-token`, JSON.stringify({
+        access_token:  authJson.access_token,
+        refresh_token: authJson.refresh_token,
+        token_type:    'bearer',
+        expires_in:    authJson.expires_in  ?? 3600,
+        expires_at:    authJson.expires_at  ?? Math.floor(Date.now() / 1000) + 3600,
+        user:          authJson.user,
+      }));
+    } catch { /* no localStorage — session usable for this tab only */ }
+
+    // ── Step 3: fetch profile via direct HTTP (same lock-free approach) ───────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let profile: any;
+    try {
+      const rows = await withTimeout(
+        fetch(
+          `${baseUrl}/rest/v1/profiles?id=eq.${authJson.user.id}&select=*&limit=1`,
+          { headers: { apikey: apiKey, Authorization: `Bearer ${authJson.access_token}` } }
+        ).then(r => r.json()),
         8000
       );
+      profile = Array.isArray(rows) ? rows[0] : null;
     } catch {
       return { success: false, error: UNAVAILABLE };
     }
 
-    if (profileRes.error || !profileRes.data) return { success: false, error: 'Profile not found.' };
-    return { success: true, user: mapProfile(profileRes.data) };
+    if (!profile) return { success: false, error: 'Profile not found.' };
+    return { success: true, user: mapProfile(profile) };
   },
 
   async signUp(opts: {
