@@ -144,23 +144,34 @@ export const StoreStorefront: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => navigate('/shop/cart')}
-            className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
-          >
-            <ShoppingBag className="h-5 w-5" />
-            {cartCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 bg-indigo-600 text-white text-[10px] font-bold rounded-full w-[18px] h-[18px] flex items-center justify-center">
-                {cartCount > 9 ? '9+' : cartCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => navigate('/shop/account')}
-            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
-          >
-            <User className="h-5 w-5" />
-          </button>
+          {currentUser ? (
+            <>
+              <button
+                onClick={() => navigate('/shop/cart')}
+                className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+              >
+                <ShoppingBag className="h-5 w-5" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-indigo-600 text-white text-[10px] font-bold rounded-full w-[18px] h-[18px] flex items-center justify-center">
+                    {cartCount > 9 ? '9+' : cartCount}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => navigate('/shop/account')}
+                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+              >
+                <User className="h-5 w-5" />
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors"
+            >
+              Login
+            </Link>
+          )}
         </div>
       </header>
 
@@ -506,21 +517,31 @@ export const StoreStorefront: React.FC = () => {
                       {disc > 0 && <span className="text-xs text-slate-400 line-through">{formatCurrency(product.mrp)}</span>}
                     </div>
 
-                    <button
-                      onClick={e => { e.preventDefault(); e.stopPropagation(); if (isAvailable) handleAddToCart(product); }}
-                      disabled={!isAvailable}
-                      className={clsx(
-                        'w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all duration-150',
-                        !isAvailable
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : addedId === product.id
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95'
-                      )}
-                    >
-                      <ShoppingCart className="h-3.5 w-3.5" />
-                      {!isAvailable ? 'Unavailable' : addedId === product.id ? 'Added!' : 'Add to Cart'}
-                    </button>
+                    {!currentUser ? (
+                      <Link
+                        to="/login"
+                        onClick={e => e.stopPropagation()}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                      >
+                        Login to Buy
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); if (isAvailable) handleAddToCart(product); }}
+                        disabled={!isAvailable}
+                        className={clsx(
+                          'w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all duration-150',
+                          !isAvailable
+                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : addedId === product.id
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95'
+                        )}
+                      >
+                        <ShoppingCart className="h-3.5 w-3.5" />
+                        {!isAvailable ? 'Unavailable' : addedId === product.id ? 'Added!' : 'Add to Cart'}
+                      </button>
+                    )}
                   </div>
                 </Link>
               );
@@ -529,7 +550,7 @@ export const StoreStorefront: React.FC = () => {
         )}
       </main>
 
-      <BottomNav />
+      {currentUser && <BottomNav />}
 
       <StoreShareModal
         isOpen={showShareModal}

@@ -143,7 +143,7 @@ export default function App() {
             <Route path="/shop/orders"           element={<ProtectedRoute role="customer"><CustomerOrders /></ProtectedRoute>} />
             <Route path="/shop/product/:id"      element={<ProductDetail />} />
             <Route path="/shop/service/:id"      element={<ServiceDetail />} />
-            <Route path="/shop/store/:slug"      element={<AnyAuthRoute><StoreStorefront /></AnyAuthRoute>} />
+            <Route path="/shop/store/:slug"      element={<StoreStorefront />} />
 
             {/* ── Agent ─────────────────────────────────────────────────────── */}
             <Route path="/agent"          element={<ProtectedRoute role="agent"><AgentDashboard /></ProtectedRoute>} />
