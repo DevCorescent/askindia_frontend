@@ -70,7 +70,7 @@ const navigateByRole = (role: string, navigate: ReturnType<typeof useNavigate>) 
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login, setCurrentUser, loadFromSupabase, trackActivity } = useAppStore();
+  const { login, setCurrentUser, trackActivity } = useAppStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -82,15 +82,20 @@ export const Login: React.FC = () => {
     setIsLoading(true);
 
     if (isSupabaseConfigured) {
-      // Supabase mode — use real auth
-      const result = await authService.signIn(demoEmail, demoPassword);
-      setIsLoading(false);
-      if (result.success && result.user) {
-        setCurrentUser(result.user);
-        await loadFromSupabase(result.user.id, result.user.role, result.user.storeId ?? null);
-        navigateByRole(result.user.role, navigate);
-      } else {
-        setError(result.error ?? 'Demo login failed.');
+      try {
+        const result = await authService.signIn(demoEmail, demoPassword);
+        if (result.success && result.user) {
+          setCurrentUser(result.user);
+          // Navigate immediately — useSupabaseInit loads the rest via onAuthStateChange
+          navigateByRole(result.user.role, navigate);
+        } else {
+          setError(result.error ?? 'Demo login failed.');
+        }
+      } catch (err) {
+        console.error('[Login] Demo sign-in error:', err);
+        setError('Something went wrong. Please try again.');
+      } finally {
+        setIsLoading(false);
       }
     } else {
       // Mock mode — use local Zustand auth
@@ -116,16 +121,21 @@ export const Login: React.FC = () => {
     setIsLoading(true);
 
     if (isSupabaseConfigured) {
-      // Supabase mode
-      const result = await authService.signIn(email.trim(), password);
-      setIsLoading(false);
-      if (result.success && result.user) {
-        setCurrentUser(result.user);
-        await loadFromSupabase(result.user.id, result.user.role, result.user.storeId ?? null);
-        trackActivity('login', { method: 'email', role: result.user.role }, '/login');
-        navigateByRole(result.user.role, navigate);
-      } else {
-        setError(result.error ?? 'Login failed. Please check your credentials.');
+      try {
+        const result = await authService.signIn(email.trim(), password);
+        if (result.success && result.user) {
+          setCurrentUser(result.user);
+          trackActivity('login', { method: 'email', role: result.user.role }, '/login');
+          // Navigate immediately — useSupabaseInit loads the rest via onAuthStateChange
+          navigateByRole(result.user.role, navigate);
+        } else {
+          setError(result.error ?? 'Login failed. Please check your credentials.');
+        }
+      } catch (err) {
+        console.error('[Login] Sign-in error:', err);
+        setError('Something went wrong. Please try again.');
+      } finally {
+        setIsLoading(false);
       }
     } else {
       // Mock mode
