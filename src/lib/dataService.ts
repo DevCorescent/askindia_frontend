@@ -28,21 +28,47 @@ import type {
 //  AUTH SERVICE
 // ════════════════════════════════════════════════════════════════════════════
 
+// Rejects after ms milliseconds so hung Supabase calls don't spin forever.
+function withTimeout<T>(promise: Promise<T>, ms: number, msg = 'Request timed out'): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(msg)), ms)),
+  ]);
+}
+
 export const authService = {
 
   async signIn(email: string, password: string): Promise<{ success: boolean; user?: User; error?: string }> {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const UNAVAILABLE = 'Unable to reach the server. Please try again in a moment.';
+
+    // Auth — 10 s timeout so a paused Supabase project never hangs the UI
+    let authResult: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+    try {
+      authResult = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        10000
+      );
+    } catch {
+      return { success: false, error: UNAVAILABLE };
+    }
+
+    const { data, error } = authResult;
     if (error || !data.user) return { success: false, error: error?.message ?? 'Login failed.' };
 
-    // Fetch profile
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
+    // Profile fetch — 8 s timeout
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let profileRes: { data: any; error: any };
+    try {
+      profileRes = await withTimeout(
+        supabase.from('profiles').select('*').eq('id', data.user.id).single() as Promise<{ data: any; error: any }>,
+        8000
+      );
+    } catch {
+      return { success: false, error: UNAVAILABLE };
+    }
 
-    if (profileError || !profile) return { success: false, error: 'Profile not found.' };
-    return { success: true, user: mapProfile(profile) };
+    if (profileRes.error || !profileRes.data) return { success: false, error: 'Profile not found.' };
+    return { success: true, user: mapProfile(profileRes.data) };
   },
 
   async signUp(opts: {
