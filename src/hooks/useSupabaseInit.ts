@@ -13,7 +13,7 @@
 
 import { useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { authService } from '../lib/dataService';
+import { authService, dataLoaders } from '../lib/dataService';
 import { useAppStore } from '../store/useAppStore';
 
 export function useSupabaseInit(): void {
@@ -25,6 +25,34 @@ export function useSupabaseInit(): void {
     }
 
     // ── Real Supabase mode ────────────────────────────────────────────────────
+    // Load public catalogue data immediately so the shop shows real products
+    // even for unauthenticated guests, before the auth check resolves.
+    Promise.allSettled([
+      dataLoaders.loadProducts('customer'),
+      dataLoaders.loadServices('customer'),
+      dataLoaders.loadStores(),
+      dataLoaders.loadHomepageConfig(),
+    ]).then(([productsRes, servicesRes, storesRes, homepageRes]) => {
+      const patch: Record<string, unknown> = {};
+      if (productsRes.status === 'fulfilled' && Array.isArray(productsRes.value)) {
+        patch.products = productsRes.value;
+      }
+      if (servicesRes.status === 'fulfilled' && Array.isArray(servicesRes.value)) {
+        patch.services = servicesRes.value;
+      }
+      if (storesRes.status === 'fulfilled' && Array.isArray(storesRes.value)) {
+        patch.stores = storesRes.value;
+      }
+      if (homepageRes.status === 'fulfilled' && homepageRes.value) {
+        patch.homepageConfig = homepageRes.value;
+      }
+      if (Object.keys(patch).length > 0) {
+        useAppStore.setState(patch as any);
+      }
+    }).catch(err => {
+      console.warn('[useSupabaseInit] Public data prefetch failed:', err);
+    });
+
     // onAuthStateChange fires immediately with the current session state,
     // so we don't need a separate getSession() call on mount.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

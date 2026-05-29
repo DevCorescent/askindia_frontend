@@ -8,6 +8,7 @@ import type {
 import { SYSTEM_ROLES } from '../data/permissions';
 import { ADMIN_USER } from '../data/mockData';
 import { dataLoaders } from '../lib/dataService';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 export interface RegisteredUser extends User {
   passwordHash: string;
@@ -644,9 +645,9 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       currentUser: null,
       registeredUsers: [adminSeed, demoStoreOwner, demoProvider, demoCustomer, demoAgent],
-      products: demoProducts,
-      stores: [demoStore],
-      services: demoServices,
+      products: isSupabaseConfigured ? [] : demoProducts,
+      stores: isSupabaseConfigured ? [] : [demoStore],
+      services: isSupabaseConfigured ? [] : demoServices,
       orders: [],
       serviceOrders: [],
       withdrawalRequests: [],
@@ -1210,7 +1211,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'askindia-store',
-      version: 3,
+      version: 4,
       migrate: (persistedState: unknown, fromVersion: number) => {
         // Deep-merge the persisted state with the latest defaults so that
         // any new fields (added across versions) are always present.
@@ -1244,11 +1245,14 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         currentUser: state.currentUser,
         registeredUsers: state.registeredUsers,
-        products: state.products,
-        stores: state.stores,
-        services: state.services,
-        orders: state.orders,
-        serviceOrders: state.serviceOrders,
+        // When Supabase is live, these are always fetched fresh — don't cache in localStorage
+        ...(isSupabaseConfigured ? {} : {
+          products: state.products,
+          stores: state.stores,
+          services: state.services,
+          orders: state.orders,
+          serviceOrders: state.serviceOrders,
+        }),
         withdrawalRequests: state.withdrawalRequests,
         notifications: state.notifications,
         cart: state.cart,
@@ -1273,8 +1277,8 @@ export const useAppStore = create<AppState>()(
             state.registeredUsers = [...state.registeredUsers, demo];
           }
         }
-        // Ensure demo store exists
-        if (!state.stores.some(s => s.id === DEMO_STORE_ID)) {
+        // Ensure demo store exists (only in mock mode)
+        if (!isSupabaseConfigured && !state.stores.some(s => s.id === DEMO_STORE_ID)) {
           state.stores = [demoStore, ...state.stores];
         }
         // Ensure agents array exists
@@ -1282,9 +1286,11 @@ export const useAppStore = create<AppState>()(
         else if (!state.agents.some(a => a.id === demoAgentData.id)) {
           state.agents = [demoAgentData, ...state.agents];
         }
-        // Seed demo products & services only when none exist yet
-        if (state.products.length === 0) state.products = demoProducts;
-        if (state.services.length === 0) state.services = demoServices;
+        // Seed demo products & services only in mock mode
+        if (!isSupabaseConfigured) {
+          if (state.products.length === 0) state.products = demoProducts;
+          if (state.services.length === 0) state.services = demoServices;
+        }
         // Patch old services that don't have the commission field
         state.services = state.services.map(svc => ({
           ...svc,
