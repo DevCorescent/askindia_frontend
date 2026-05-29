@@ -29,9 +29,10 @@ import type {
 // ════════════════════════════════════════════════════════════════════════════
 
 // Rejects after ms milliseconds so hung Supabase calls don't spin forever.
-function withTimeout<T>(promise: Promise<T>, ms: number, msg = 'Request timed out'): Promise<T> {
+// Accepts PromiseLike<T> so PostgrestBuilder (which has .then but not .catch/.finally) works too.
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, msg = 'Request timed out'): Promise<T> {
   return Promise.race([
-    promise,
+    Promise.resolve(promise),
     new Promise<never>((_, reject) => setTimeout(() => reject(new Error(msg)), ms)),
   ]);
 }
@@ -60,7 +61,7 @@ export const authService = {
     let profileRes: { data: any; error: any };
     try {
       profileRes = await withTimeout(
-        supabase.from('profiles').select('*').eq('id', data.user.id).single() as Promise<{ data: any; error: any }>,
+        supabase.from('profiles').select('*').eq('id', data.user.id).single(),
         8000
       );
     } catch {
