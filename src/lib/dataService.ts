@@ -42,6 +42,10 @@ export const authService = {
   async signIn(email: string, password: string): Promise<{ success: boolean; user?: User; error?: string }> {
     const UNAVAILABLE = 'Unable to reach the server. Please try again in a moment.';
 
+    // Clear any stale/expired session first — a leftover token can cause the client
+    // to hang on refresh before processing the new sign-in request.
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+
     // Auth — 10 s timeout so a paused Supabase project never hangs the UI
     let authResult: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
     try {
