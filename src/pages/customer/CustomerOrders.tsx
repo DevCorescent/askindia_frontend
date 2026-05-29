@@ -367,9 +367,28 @@ export const CustomerOrders: React.FC = () => {
               ))}
             </div>
             <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-slate-600">Subtotal</span><span>{formatCurrency(selectedOrder.subtotal)}</span></div>
-              <div className="flex justify-between"><span className="text-slate-600">Delivery</span><span className="text-emerald-600">FREE</span></div>
-              <div className="flex justify-between font-bold border-t border-slate-200 pt-2"><span>Total</span><span>{formatCurrency(selectedOrder.total)}</span></div>
+              <div className="flex justify-between text-slate-600">
+                <span>Subtotal</span><span>{formatCurrency(selectedOrder.subtotal)}</span>
+              </div>
+              {(selectedOrder.discount ?? 0) > 0 && (
+                <div className="flex justify-between text-emerald-600">
+                  <span>Discount</span><span>–{formatCurrency(selectedOrder.discount!)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-slate-600">
+                <span>Delivery</span>
+                <span className={(selectedOrder.shippingCharge ?? 0) === 0 ? 'text-emerald-600 font-medium' : ''}>
+                  {(selectedOrder.shippingCharge ?? 0) === 0 ? 'FREE' : formatCurrency(selectedOrder.shippingCharge!)}
+                </span>
+              </div>
+              {(selectedOrder.gstAmount ?? 0) > 0 && (
+                <div className="flex justify-between text-slate-600">
+                  <span>GST</span><span>{formatCurrency(selectedOrder.gstAmount!)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold border-t border-slate-200 pt-2">
+                <span>Total</span><span>{formatCurrency(selectedOrder.total)}</span>
+              </div>
             </div>
           </div>
         )}

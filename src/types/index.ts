@@ -181,6 +181,9 @@ export interface Order {
   storeName: string;
   items: OrderItem[];
   subtotal: number;
+  shippingCharge?: number;
+  discount?: number;
+  gstAmount?: number;
   total: number;
   commissionTotal: number;
   adminRevenue: number;
@@ -192,11 +195,23 @@ export interface Order {
   agentId?: string;
   agentName?: string;
   agentCode?: string;
-  agentCommission?: number;  // amount earned by agent
+  agentCommission?: number;
   trackingNumber?: string;
   courierName?: string;
   cancelReason?: string;
   createdAt: string;
+}
+
+export interface SavedAddress {
+  id: string;
+  firstName: string;
+  lastName?: string;
+  phone: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  pinCode: string;
 }
 
 export interface ServiceOrder {
@@ -258,6 +273,7 @@ export interface Notification {
   title: string;
   message: string;
   read: boolean;
+  link?: string;
   createdAt: string;
 }
 
