@@ -34,13 +34,15 @@ export function useSupabaseInit(): void {
       dataLoaders.loadHomepageConfig(),
     ]).then(([productsRes, servicesRes, storesRes, homepageRes]) => {
       const patch: Record<string, unknown> = {};
-      if (productsRes.status === 'fulfilled' && Array.isArray(productsRes.value)) {
+      // Only overwrite if Supabase returned real data — never replace with an empty array,
+      // so the homepage always shows something (demo fallback) if the DB has no rows yet.
+      if (productsRes.status === 'fulfilled' && Array.isArray(productsRes.value) && productsRes.value.length > 0) {
         patch.products = productsRes.value;
       }
-      if (servicesRes.status === 'fulfilled' && Array.isArray(servicesRes.value)) {
+      if (servicesRes.status === 'fulfilled' && Array.isArray(servicesRes.value) && servicesRes.value.length > 0) {
         patch.services = servicesRes.value;
       }
-      if (storesRes.status === 'fulfilled' && Array.isArray(storesRes.value)) {
+      if (storesRes.status === 'fulfilled' && Array.isArray(storesRes.value) && storesRes.value.length > 0) {
         patch.stores = storesRes.value;
       }
       if (homepageRes.status === 'fulfilled' && homepageRes.value) {

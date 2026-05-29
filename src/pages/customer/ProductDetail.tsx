@@ -31,8 +31,8 @@ export const ProductDetail: React.FC = () => {
           <div className="text-6xl mb-4">🔍</div>
           <h2 className="text-xl font-bold text-slate-800 mb-2">Product Not Found</h2>
           <p className="text-slate-400 mb-6">This product does not exist or has been removed.</p>
-          <button onClick={() => navigate('/shop')} className="btn-primary flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" /> Back to Shop
+          <button onClick={() => navigate(currentUser ? '/shop' : '/')} className="btn-primary flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" /> Back to Home
           </button>
         </div>
       </AppLayout>
@@ -54,14 +54,16 @@ export const ProductDetail: React.FC = () => {
   ).slice(0, 4);
 
   const handleAddToCart = () => {
-    if (!canAdd) return;
+    if (!currentUser) { navigate('/login'); return; }
+    if (currentUser.role !== 'customer' || !canAdd) return;
     addToCart(product, qty);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 1500);
   };
 
   const handleBuyNow = () => {
-    if (!canAdd) return;
+    if (!currentUser) { navigate('/login'); return; }
+    if (currentUser.role !== 'customer' || !canAdd) return;
     addToCart(product, qty);
     navigate('/shop/cart');
   };
@@ -76,7 +78,7 @@ export const ProductDetail: React.FC = () => {
 
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1.5 text-sm text-slate-400 flex-wrap">
-          <Link to="/shop" className="hover:text-brand-600 transition-colors">All Products</Link>
+          <Link to={currentUser ? '/shop' : '/'} className="hover:text-brand-600 transition-colors">All Products</Link>
           <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
           <span className="text-slate-500">{product.category}</span>
           <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
@@ -272,38 +274,52 @@ export const ProductDetail: React.FC = () => {
               </div>
             )}
 
-            {/* Action buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={handleAddToCart}
-                disabled={!canAdd}
-                className={clsx(
-                  'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all duration-150',
-                  !canAdd
-                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                    : addedToCart
-                      ? 'bg-emerald-600 text-white'
-                      : 'btn-primary'
-                )}
-              >
-                {addedToCart ? (
-                  <><Check className="h-4 w-4" /> Added to Cart!</>
-                ) : (
-                  <><ShoppingCart className="h-4 w-4" /> {canAdd ? 'Add to Cart' : isOutOfStock ? 'Out of Stock' : 'Unavailable'}</>
-                )}
-              </button>
-              <button
-                onClick={handleBuyNow}
-                disabled={!canAdd}
-                className={clsx(
-                  'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all duration-150',
-                  !canAdd ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'btn-secondary'
-                )}
-              >
-                <Zap className="h-4 w-4" />
-                Buy Now
-              </button>
-            </div>
+            {/* Action buttons — guests see a sign-in prompt */}
+            {!currentUser ? (
+              <div className="rounded-2xl border-2 border-dashed border-brand-200 bg-brand-50 p-5 text-center space-y-3">
+                <p className="text-sm font-medium text-brand-700">Sign in to add this product to your cart or buy now</p>
+                <div className="flex gap-3 justify-center">
+                  <button onClick={() => navigate('/login')} className="btn-primary px-6 py-2.5 text-sm">
+                    Sign In
+                  </button>
+                  <button onClick={() => navigate('/register/customer')} className="btn-secondary px-6 py-2.5 text-sm">
+                    Create Account
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleAddToCart}
+                  disabled={!canAdd}
+                  className={clsx(
+                    'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all duration-150',
+                    !canAdd
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : addedToCart
+                        ? 'bg-emerald-600 text-white'
+                        : 'btn-primary'
+                  )}
+                >
+                  {addedToCart ? (
+                    <><Check className="h-4 w-4" /> Added to Cart!</>
+                  ) : (
+                    <><ShoppingCart className="h-4 w-4" /> {canAdd ? 'Add to Cart' : isOutOfStock ? 'Out of Stock' : 'Unavailable'}</>
+                  )}
+                </button>
+                <button
+                  onClick={handleBuyNow}
+                  disabled={!canAdd}
+                  className={clsx(
+                    'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all duration-150',
+                    !canAdd ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'btn-secondary'
+                  )}
+                >
+                  <Zap className="h-4 w-4" />
+                  Buy Now
+                </button>
+              </div>
+            )}
 
             {/* Highlights */}
             {product.highlights && product.highlights.length > 0 && (

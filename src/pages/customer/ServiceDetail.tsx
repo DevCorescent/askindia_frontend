@@ -32,8 +32,8 @@ export const ServiceDetail: React.FC = () => {
           <div className="text-6xl mb-4">🔍</div>
           <h2 className="text-xl font-bold text-slate-800 mb-2">Service Not Found</h2>
           <p className="text-slate-400 mb-6">This service does not exist or has been removed.</p>
-          <button onClick={() => navigate('/shop/services')} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Back to Services
+          <button onClick={() => navigate(currentUser ? '/shop/services' : '/')} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold transition-colors">
+            <ArrowLeft className="h-4 w-4" /> {currentUser ? 'Back to Services' : 'Back to Home'}
           </button>
         </div>
       </AppLayout>
@@ -225,20 +225,34 @@ export const ServiceDetail: React.FC = () => {
               }
             </div>
 
-            {/* Book Now button */}
-            <button
-              onClick={() => isAvailable && setShowModal(true)}
-              disabled={!isAvailable}
-              className={clsx(
-                'w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all duration-150',
-                isAvailable
-                  ? 'bg-violet-600 text-white hover:bg-violet-700 active:scale-95'
-                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-              )}
-            >
-              <CalendarDays className="h-4 w-4" />
-              {isAvailable ? 'Book Now' : 'Not Available in Your City'}
-            </button>
+            {/* Book Now button — guests see a sign-in prompt */}
+            {!currentUser ? (
+              <div className="rounded-2xl border-2 border-dashed border-violet-200 bg-violet-50 p-4 text-center space-y-3">
+                <p className="text-sm font-medium text-violet-700">Sign in to book this service</p>
+                <div className="flex gap-3 justify-center">
+                  <button onClick={() => navigate('/login')} className="px-5 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors">
+                    Sign In
+                  </button>
+                  <button onClick={() => navigate('/register/customer')} className="btn-secondary px-5 py-2 text-sm">
+                    Create Account
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => isAvailable && setShowModal(true)}
+                disabled={!isAvailable}
+                className={clsx(
+                  'w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all duration-150',
+                  isAvailable
+                    ? 'bg-violet-600 text-white hover:bg-violet-700 active:scale-95'
+                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                )}
+              >
+                <CalendarDays className="h-4 w-4" />
+                {isAvailable ? 'Book Now' : 'Not Available in Your City'}
+              </button>
+            )}
 
             {/* What's Included */}
             {service.includes && service.includes.length > 0 && (

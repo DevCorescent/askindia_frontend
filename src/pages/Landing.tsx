@@ -323,7 +323,8 @@ export const Landing: React.FC = () => {
 
   const handleAddToCart = (product:Product,e:React.MouseEvent) => {
     e.stopPropagation();
-    if(!currentUser){navigate('/login');return;}
+    // Guests: go to product page where they'll be prompted to login for purchase
+    if(!currentUser){ navigate(`/shop/product/${product.id}`); return; }
     if(currentUser.role!=='customer') return;
     if(product.status!=='active'||!avail(product)) return;
     addToCart(product,1);
@@ -338,15 +339,13 @@ export const Landing: React.FC = () => {
   };
 
   const goProduct = (id:string) => {
-    if(!currentUser){navigate('/login');return;}
-    if(currentUser.role==='customer'){navigate(`/shop/product/${id}`);return;}
-    navigate(currentUser.role==='admin'?'/admin':currentUser.role==='store_owner'?'/store':'/service-provider');
+    // Everyone (including guests and non-customer roles) can view product details
+    navigate(`/shop/product/${id}`);
   };
 
   const goService = (id:string) => {
-    if(!currentUser){navigate('/login');return;}
-    if(currentUser.role==='customer'){navigate(`/shop/service/${id}`);return;}
-    navigate(currentUser.role==='admin'?'/admin':currentUser.role==='store_owner'?'/store':'/service-provider');
+    // Everyone (including guests and non-customer roles) can view service details
+    navigate(`/shop/service/${id}`);
   };
 
   const goDashboard = () => {

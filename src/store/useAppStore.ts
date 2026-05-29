@@ -1239,7 +1239,17 @@ export const useAppStore = create<AppState>()(
           newsletterSubtitle:   hc.newsletterSubtitle    ?? DEFAULT_HOMEPAGE_CONFIG.newsletterSubtitle,
         };
 
-        return { ...s, homepageConfig: patched };
+        const result: Record<string, unknown> = { ...s, homepageConfig: patched };
+        // In Supabase mode, drop catalogue data from old localStorage so the
+        // public prefetch (not stale cached data) controls what users see.
+        if (isSupabaseConfigured) {
+          delete result.products;
+          delete result.stores;
+          delete result.services;
+          delete result.orders;
+          delete result.serviceOrders;
+        }
+        return result;
       },
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
@@ -1277,8 +1287,8 @@ export const useAppStore = create<AppState>()(
             state.registeredUsers = [...state.registeredUsers, demo];
           }
         }
-        // Ensure demo store exists (only in mock mode)
-        if (!isSupabaseConfigured && !state.stores.some(s => s.id === DEMO_STORE_ID)) {
+        // Ensure demo store exists as fallback (Supabase mode: replaced once real data loads)
+        if (!state.stores.some(s => s.id === DEMO_STORE_ID)) {
           state.stores = [demoStore, ...state.stores];
         }
         // Ensure agents array exists
@@ -1286,11 +1296,10 @@ export const useAppStore = create<AppState>()(
         else if (!state.agents.some(a => a.id === demoAgentData.id)) {
           state.agents = [demoAgentData, ...state.agents];
         }
-        // Seed demo products & services only in mock mode
-        if (!isSupabaseConfigured) {
-          if (state.products.length === 0) state.products = demoProducts;
-          if (state.services.length === 0) state.services = demoServices;
-        }
+        // Seed demo products & services as fallback when store is empty
+        // (replaced by Supabase data once the public prefetch completes)
+        if (state.products.length === 0) state.products = demoProducts;
+        if (state.services.length === 0) state.services = demoServices;
         // Patch old services that don't have the commission field
         state.services = state.services.map(svc => ({
           ...svc,

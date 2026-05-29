@@ -141,8 +141,8 @@ export default function App() {
             <Route path="/shop/cart"             element={<ProtectedRoute role="customer"><CustomerCart /></ProtectedRoute>} />
             <Route path="/shop/checkout"         element={<ProtectedRoute role="customer"><CustomerCheckout /></ProtectedRoute>} />
             <Route path="/shop/orders"           element={<ProtectedRoute role="customer"><CustomerOrders /></ProtectedRoute>} />
-            <Route path="/shop/product/:id"      element={<ProtectedRoute role="customer"><ProductDetail /></ProtectedRoute>} />
-            <Route path="/shop/service/:id"      element={<ProtectedRoute role="customer"><ServiceDetail /></ProtectedRoute>} />
+            <Route path="/shop/product/:id"      element={<ProductDetail />} />
+            <Route path="/shop/service/:id"      element={<ServiceDetail />} />
             <Route path="/shop/store/:slug"      element={<AnyAuthRoute><StoreStorefront /></AnyAuthRoute>} />
 
             {/* ── Agent ─────────────────────────────────────────────────────── */}
