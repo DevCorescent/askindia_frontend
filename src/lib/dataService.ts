@@ -295,6 +295,7 @@ export const dataLoaders = {
     let q = 'select=*&order=created_at.desc';
     if (role === 'store_owner' && storeId) q += `&store_id=eq.${storeId}`;
     else if (role === 'customer' || role === 'agent') q += '&status=eq.active';
+    // admin: no filter — sees all products and statuses
     const rows = await _get<ProductRow>('products', q);
     return rows.map(mapProduct);
   },
@@ -302,7 +303,7 @@ export const dataLoaders = {
   async loadServices(role: User['role'], providerId?: string): Promise<Service[]> {
     let q = 'select=*&order=created_at.desc';
     if (role === 'service_provider' && providerId) q += `&provider_id=eq.${providerId}`;
-    else q += '&status=eq.active';
+    else if (role !== 'admin') q += '&status=eq.active';
     const rows = await _get<ServiceRow>('services', q);
     return rows.map(mapService);
   },
@@ -389,10 +390,10 @@ export const mutations = {
 
   // ── Products ───────────────────────────────────────────────────────────────
 
-  async createProduct(data: Omit<Product, 'id' | 'createdAt' | 'sold'> & { storeId: string }): Promise<string> {
+  async createProduct(data: Omit<Product, 'id' | 'createdAt' | 'sold'> & { storeId?: string }): Promise<string> {
     const { storeId, ...rest } = data;
     const row = await _postReturn<{ id: string }>('products', {
-      store_id:         storeId,
+      store_id:         storeId ?? null,
       name:             rest.name,
       description:      rest.description,
       price:            rest.price,
@@ -719,7 +720,7 @@ export const mutations = {
 
   // ── Agents ──────────────────────────────────────────────────────────────────
 
-  async createAgent(agentId: string, data: Omit<Agent, 'id' | 'createdAt' | 'totalSales' | 'totalOrders' | 'walletBalance' | 'totalEarned'>): Promise<void> {
+  async createAgent(agentId: string, data: { agentCode: string; commissionRate: number; status: Agent['status'] }): Promise<void> {
     await _post('agents', {
       id:              agentId,
       agent_code:      data.agentCode,

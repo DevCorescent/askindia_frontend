@@ -7,7 +7,7 @@ import type {
 } from '../types';
 import { SYSTEM_ROLES } from '../data/permissions';
 import { ADMIN_USER } from '../data/mockData';
-import { dataLoaders } from '../lib/dataService';
+import { dataLoaders, mutations, authService } from '../lib/dataService';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 export interface RegisteredUser extends User {
@@ -49,7 +49,7 @@ interface AppState {
   logout: () => void;
 
   // Agents
-  addAgent: (data: Omit<Agent, 'id' | 'createdAt' | 'totalSales' | 'totalOrders' | 'walletBalance' | 'totalEarned'> & { password: string }) => { success: boolean; error?: string };
+  addAgent: (data: Omit<Agent, 'id' | 'createdAt' | 'totalSales' | 'totalOrders' | 'walletBalance' | 'totalEarned'> & { password: string }) => Promise<{ success: boolean; error?: string }>;
   updateAgent: (id: string, patch: Partial<Agent>) => void;
   activateAgent: (id: string, adminEmail: string) => void;
   suspendAgent: (id: string) => void;
@@ -762,13 +762,53 @@ export const useAppStore = create<AppState>()(
 
       // ── Agents ──────────────────────────────────────────────────────────────
 
-      addAgent: ({ password, ...agentData }) => {
+      addAgent: async ({ password, ...agentData }) => {
         const { registeredUsers, agents, isEmailTaken } = get();
         if (isEmailTaken(agentData.email)) {
           return { success: false, error: 'Email already exists' };
         }
+        const agentCode = agentData.agentCode || `AGT${String(agents.filter(a => !a.id.startsWith('demo')).length + 1).padStart(3, '0')}`;
+
+        if (isSupabaseConfigured) {
+          const signup = await authService.signUp({
+            email: agentData.email,
+            password,
+            name: agentData.name,
+            role: 'agent',
+            phone: agentData.phone,
+            city: agentData.city,
+            state: agentData.state,
+          });
+          if (!signup.success || !signup.userId) {
+            return { success: false, error: signup.error ?? 'Registration failed.' };
+          }
+          const agentId = signup.userId;
+          try {
+            await mutations.createAgent(agentId, {
+              agentCode,
+              commissionRate: agentData.commissionRate,
+              status: 'pending',
+            });
+          } catch (err) {
+            console.error('[addAgent] Failed to create agent record:', err);
+          }
+          const newAgent: Agent = {
+            ...agentData,
+            id: agentId,
+            agentCode,
+            status: 'pending',
+            totalSales: 0,
+            totalOrders: 0,
+            walletBalance: 0,
+            totalEarned: 0,
+            createdAt: new Date().toISOString().slice(0, 10),
+          };
+          set(s => ({ agents: [...s.agents, newAgent] }));
+          return { success: true };
+        }
+
+        // Mock mode
         const id = `u_agent_${Date.now()}`;
-        const agentCode = `AGT${String(agents.length + 1).padStart(3, '0')}`;
         const newAgent: Agent = {
           ...agentData,
           id,
@@ -798,24 +838,33 @@ export const useAppStore = create<AppState>()(
         return { success: true };
       },
 
-      updateAgent: (id, patch) =>
-        set(s => ({ agents: s.agents.map(a => a.id === id ? { ...a, ...patch } : a) })),
+      updateAgent: (id, patch) => {
+        set(s => ({ agents: s.agents.map(a => a.id === id ? { ...a, ...patch } : a) }));
+        if (isSupabaseConfigured) {
+          mutations.updateAgent(id, patch).catch(err => console.error('[updateAgent] DB error:', err));
+        }
+      },
 
-      activateAgent: (id, adminEmail) =>
+      activateAgent: (id, adminEmail) => {
+        const patch = { status: 'active' as const, activatedAt: new Date().toISOString(), activatedBy: adminEmail };
         set(s => ({
-          agents: s.agents.map(a =>
-            a.id === id
-              ? { ...a, status: 'active' as const, activatedAt: new Date().toISOString(), activatedBy: adminEmail }
-              : a
-          ),
-        })),
+          agents: s.agents.map(a => a.id === id ? { ...a, ...patch } : a),
+        }));
+        if (isSupabaseConfigured) {
+          mutations.updateAgent(id, patch).catch(err => console.error('[activateAgent] DB error:', err));
+        }
+      },
 
-      suspendAgent: (id) =>
+      suspendAgent: (id) => {
         set(s => ({
           agents: s.agents.map(a =>
             a.id === id ? { ...a, status: 'suspended' as const } : a
           ),
-        })),
+        }));
+        if (isSupabaseConfigured) {
+          mutations.updateAgent(id, { status: 'suspended' }).catch(err => console.error('[suspendAgent] DB error:', err));
+        }
+      },
 
       creditAgentCommission: (agentId, amount) =>
         set(s => ({
@@ -829,39 +878,72 @@ export const useAppStore = create<AppState>()(
       // ── Products ────────────────────────────────────────────────────────────
 
       addProduct: (product) => {
+        const tempId = `p_${Date.now()}`;
         const newProduct: Product = {
           ...product,
-          id: `p_${Date.now()}`,
+          id: tempId,
           sold: 0,
           createdAt: new Date().toISOString().slice(0, 10),
         };
         set(s => ({ products: [newProduct, ...s.products] }));
+        if (isSupabaseConfigured) {
+          const { currentUser } = get();
+          mutations.createProduct({ ...product, storeId: currentUser?.storeId })
+            .then(dbId => {
+              set(s => ({
+                products: s.products.map(p => p.id === tempId ? { ...p, id: dbId } : p),
+              }));
+            })
+            .catch(err => console.error('[addProduct] DB error:', err));
+        }
       },
 
-      updateProduct: (id, patch) =>
-        set(s => ({ products: s.products.map(p => p.id === id ? { ...p, ...patch } : p) })),
+      updateProduct: (id, patch) => {
+        set(s => ({ products: s.products.map(p => p.id === id ? { ...p, ...patch } : p) }));
+        if (isSupabaseConfigured) {
+          mutations.updateProduct(id, patch).catch(err => console.error('[updateProduct] DB error:', err));
+        }
+      },
 
-      deleteProduct: (id) =>
-        set(s => ({ products: s.products.filter(p => p.id !== id) })),
+      deleteProduct: (id) => {
+        set(s => ({ products: s.products.filter(p => p.id !== id) }));
+        if (isSupabaseConfigured) {
+          mutations.deleteProduct(id).catch(err => console.error('[deleteProduct] DB error:', err));
+        }
+      },
 
       // ── Stores ──────────────────────────────────────────────────────────────
 
       createStore: (data) => {
-        const id = `s_${Date.now()}`;
+        const tempId = `s_${Date.now()}`;
         const newStore: Store = {
           ...data,
-          id,
+          id: tempId,
           totalSales: 0,
           totalOrders: 0,
           walletBalance: 0,
           createdAt: new Date().toISOString().slice(0, 10),
         };
         set(s => ({ stores: [...s.stores, newStore] }));
-        return id;
+        if (isSupabaseConfigured) {
+          mutations.createStore(data)
+            .then(dbId => {
+              set(s => ({
+                stores: s.stores.map(st => st.id === tempId ? { ...st, id: dbId } : st),
+                currentUser: s.currentUser?.id === data.ownerId ? { ...s.currentUser, storeId: dbId } : s.currentUser,
+              }));
+            })
+            .catch(err => console.error('[createStore] DB error:', err));
+        }
+        return tempId;
       },
 
-      updateStore: (id, patch) =>
-        set(s => ({ stores: s.stores.map(st => st.id === id ? { ...st, ...patch } : st) })),
+      updateStore: (id, patch) => {
+        set(s => ({ stores: s.stores.map(st => st.id === id ? { ...st, ...patch } : st) }));
+        if (isSupabaseConfigured) {
+          mutations.updateStore(id, patch).catch(err => console.error('[updateStore] DB error:', err));
+        }
+      },
 
       updateStoreCustomization: (storeId, customization) =>
         set(s => ({
@@ -883,42 +965,62 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
-      activateStore: (id, adminEmail) =>
+      activateStore: (id, adminEmail) => {
+        const patch = { status: 'active' as const, activatedAt: new Date().toISOString(), activatedBy: adminEmail };
         set(s => ({
-          stores: s.stores.map(st =>
-            st.id === id
-              ? { ...st, status: 'active' as const, activatedAt: new Date().toISOString(), activatedBy: adminEmail }
-              : st
-          ),
-        })),
+          stores: s.stores.map(st => st.id === id ? { ...st, ...patch } : st),
+        }));
+        if (isSupabaseConfigured) {
+          mutations.updateStore(id, patch).catch(err => console.error('[activateStore] DB error:', err));
+        }
+      },
 
-      rejectStore: (id, reason) =>
+      rejectStore: (id, reason) => {
+        const patch = { status: 'suspended' as const, rejectedAt: new Date().toISOString(), rejectionReason: reason };
         set(s => ({
-          stores: s.stores.map(st =>
-            st.id === id
-              ? { ...st, status: 'suspended' as const, rejectedAt: new Date().toISOString(), rejectionReason: reason }
-              : st
-          ),
-        })),
+          stores: s.stores.map(st => st.id === id ? { ...st, ...patch } : st),
+        }));
+        if (isSupabaseConfigured) {
+          mutations.updateStore(id, patch).catch(err => console.error('[rejectStore] DB error:', err));
+        }
+      },
 
       // ── Services ────────────────────────────────────────────────────────────
 
       addService: (service) => {
+        const tempId = `svc_${Date.now()}`;
         const newService: Service = {
           ...service,
-          id: `svc_${Date.now()}`,
+          id: tempId,
           rating: 0,
           reviewCount: 0,
           createdAt: new Date().toISOString().slice(0, 10),
         };
         set(s => ({ services: [newService, ...s.services] }));
+        if (isSupabaseConfigured) {
+          mutations.createService({ ...service })
+            .then(dbId => {
+              set(s => ({
+                services: s.services.map(svc => svc.id === tempId ? { ...svc, id: dbId } : svc),
+              }));
+            })
+            .catch(err => console.error('[addService] DB error:', err));
+        }
       },
 
-      updateService: (id, patch) =>
-        set(s => ({ services: s.services.map(svc => svc.id === id ? { ...svc, ...patch } : svc) })),
+      updateService: (id, patch) => {
+        set(s => ({ services: s.services.map(svc => svc.id === id ? { ...svc, ...patch } : svc) }));
+        if (isSupabaseConfigured) {
+          mutations.updateService(id, patch).catch(err => console.error('[updateService] DB error:', err));
+        }
+      },
 
-      deleteService: (id) =>
-        set(s => ({ services: s.services.filter(svc => svc.id !== id) })),
+      deleteService: (id) => {
+        set(s => ({ services: s.services.filter(svc => svc.id !== id) }));
+        if (isSupabaseConfigured) {
+          mutations.deleteService(id).catch(err => console.error('[deleteService] DB error:', err));
+        }
+      },
 
       // ── Product Orders ───────────────────────────────────────────────────────
 
@@ -964,6 +1066,9 @@ export const useAppStore = create<AppState>()(
           }
           return { orders };
         });
+        if (isSupabaseConfigured) {
+          mutations.updateOrder(id, patch).catch(err => console.error('[updateOrder] DB error:', err));
+        }
       },
 
       // ── Service Orders ───────────────────────────────────────────────────────
@@ -991,20 +1096,38 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      updateServiceOrder: (id, patch) =>
-        set(s => ({ serviceOrders: s.serviceOrders.map(o => o.id === id ? { ...o, ...patch } : o) })),
+      updateServiceOrder: (id, patch) => {
+        set(s => ({ serviceOrders: s.serviceOrders.map(o => o.id === id ? { ...o, ...patch } : o) }));
+        if (isSupabaseConfigured) {
+          mutations.updateServiceOrder(id, patch).catch(err => console.error('[updateServiceOrder] DB error:', err));
+        }
+      },
 
       // ── Withdrawals ──────────────────────────────────────────────────────────
 
       addWithdrawalRequest: (req) => {
-        const newReq: WithdrawalRequest = { ...req, id: `wr_${Date.now()}` };
+        const tempId = `wr_${Date.now()}`;
+        const newReq: WithdrawalRequest = { ...req, id: tempId };
         set(s => ({ withdrawalRequests: [newReq, ...s.withdrawalRequests] }));
+        if (isSupabaseConfigured) {
+          mutations.createWithdrawalRequest(req)
+            .then(dbId => {
+              set(s => ({
+                withdrawalRequests: s.withdrawalRequests.map(r => r.id === tempId ? { ...r, id: dbId } : r),
+              }));
+            })
+            .catch(err => console.error('[addWithdrawalRequest] DB error:', err));
+        }
       },
 
-      updateWithdrawalRequest: (id, patch) =>
+      updateWithdrawalRequest: (id, patch) => {
         set(s => ({
           withdrawalRequests: s.withdrawalRequests.map(r => r.id === id ? { ...r, ...patch } : r),
-        })),
+        }));
+        if (isSupabaseConfigured) {
+          mutations.updateWithdrawalRequest(id, patch).catch(err => console.error('[updateWithdrawalRequest] DB error:', err));
+        }
+      },
 
       // ── Notifications ────────────────────────────────────────────────────────
 

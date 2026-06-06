@@ -757,3 +757,17 @@ BEGIN;
   ALTER PUBLICATION supabase_realtime ADD TABLE public.service_orders;
   ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
 COMMIT;
+
+-- ════════════════════════════════════════════════════════════════════════════
+--  MIGRATIONS  — run these after initial schema is deployed
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Migration 001: Allow admin-created products without a store (platform-level products)
+-- Run in Supabase SQL Editor if products.store_id is NOT NULL:
+ALTER TABLE public.products ALTER COLUMN store_id DROP NOT NULL;
+
+-- Migration 002: Ensure wallets exist for all existing profiles (in case trigger missed any)
+INSERT INTO public.wallets (user_id)
+SELECT id FROM public.profiles
+WHERE id NOT IN (SELECT user_id FROM public.wallets)
+ON CONFLICT (user_id) DO NOTHING;

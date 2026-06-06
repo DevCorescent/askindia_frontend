@@ -166,7 +166,6 @@ export const ServiceProviderServices: React.FC = () => {
   const handleSave = async () => {
     if (!validateForm()) return;
     setIsSaving(true);
-    await new Promise(r => setTimeout(r, 600));
 
     const tagsArray = form.tags.split(',').map(t => t.trim()).filter(Boolean);
 

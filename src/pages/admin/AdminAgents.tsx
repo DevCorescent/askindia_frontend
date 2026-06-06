@@ -53,7 +53,7 @@ export const AdminAgents: React.FC = () => {
   const pendingCount = agents.filter(a => a.status === 'pending').length;
   const suspendedCount = agents.filter(a => a.status === 'suspended').length;
 
-  const handleAddAgent = () => {
+  const handleAddAgent = async () => {
     if (!form.name.trim()) { setFormError('Name is required.'); return; }
     if (!form.email.trim()) { setFormError('Email is required.'); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setFormError('Valid email required.'); return; }
@@ -65,7 +65,7 @@ export const AdminAgents: React.FC = () => {
     setFormError('');
     setSubmitting(true);
 
-    const result = addAgent({
+    const result = await addAgent({
       name: form.name.trim(),
       email: form.email.trim().toLowerCase(),
       phone: form.phone.trim() || undefined,
