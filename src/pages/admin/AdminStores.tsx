@@ -60,7 +60,7 @@ const defaultForm: CreateFormData = {
 
 export const AdminStores: React.FC = () => {
   const navigate = useNavigate();
-  const { stores, registeredUsers, createStore, activateStore, rejectStore, updateStore, currentUser } = useAppStore();
+  const { stores, registeredUsers, createStore, activateStore, rejectStore, updateStore, currentUser, addNotification } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<StoreTab>('product');
   const [search, setSearch] = useState('');
@@ -164,22 +164,26 @@ export const AdminStores: React.FC = () => {
     const adminEmail = currentUser?.email ?? 'admin@askindia.shop';
     activateStore(store.id, adminEmail);
     setSelectedStore(prev => prev?.id === store.id ? { ...prev, status: 'active', activatedAt: new Date().toISOString(), activatedBy: adminEmail } : prev);
+    addNotification({ userId: store.ownerId, type: 'store', title: 'Store Approved!', message: `Your store "${store.name}" is now live on AskIndia. Start adding products!`, link: '/store' });
   };
 
   const handleSuspend = (store: Store) => {
     updateStore(store.id, { status: 'suspended' });
     setSelectedStore(prev => prev?.id === store.id ? { ...prev, status: 'suspended' } : prev);
+    addNotification({ userId: store.ownerId, type: 'store', title: 'Store Suspended', message: `Your store "${store.name}" has been suspended. Contact support for details.`, link: '/store' });
   };
 
   const handleRestore = (store: Store) => {
     updateStore(store.id, { status: 'active' });
     setSelectedStore(prev => prev?.id === store.id ? { ...prev, status: 'active' } : prev);
+    addNotification({ userId: store.ownerId, type: 'store', title: 'Store Restored', message: `Your store "${store.name}" is active again.`, link: '/store' });
   };
 
   const handleReject = (store: Store) => {
     if (!rejectReason.trim()) return;
     rejectStore(store.id, rejectReason.trim());
     setSelectedStore(prev => prev?.id === store.id ? { ...prev, status: 'suspended', rejectionReason: rejectReason.trim() } : prev);
+    addNotification({ userId: store.ownerId, type: 'store', title: 'Store Rejected', message: `Your store "${store.name}" was not approved. Reason: ${rejectReason.trim()}`, link: '/store' });
     setShowRejectForm(false);
     setRejectReason('');
   };

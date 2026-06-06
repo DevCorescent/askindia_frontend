@@ -33,7 +33,9 @@ export const StoreDashboard: React.FC = () => {
   const totalCommission = myOrders.reduce((s, o) => s + o.commissionTotal, 0);
   const deliveredOrders = myOrders.filter(o => o.status === 'delivered').length;
 
-  const topProducts = [...products].sort((a, b) => b.sold - a.sold).slice(0, 4);
+  // Show only this store's products — filter by storeId (works for DB-loaded products)
+  const storeProducts = products.filter(p => !p.storeId || p.storeId === myStore.id);
+  const topProducts = [...storeProducts].sort((a, b) => b.sold - a.sold).slice(0, 4);
 
   return (
     <AppLayout title="Store Dashboard">

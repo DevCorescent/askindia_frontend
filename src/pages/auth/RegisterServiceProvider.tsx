@@ -222,13 +222,15 @@ export const RegisterServiceProvider: React.FC = () => {
 
     if (isSupabaseConfigured) {
       // Supabase mode — create real account
+      // Use actual city (not 'Pan India') so DB FK and queries work correctly
+      const primaryCity = data.panIndia ? data.city : (data.availableCities[0] || data.city);
       const result = await authService.signUp({
         email: data.email.trim(),
         password: data.password,
         name: `${data.firstName.trim()} ${data.lastName.trim()}`,
         role: 'service_provider',
         phone: data.phone,
-        city: data.panIndia ? 'Pan India' : (data.availableCities[0] || data.city),
+        city: primaryCity || data.city,
         state: data.state,
       });
       if (result.success) {

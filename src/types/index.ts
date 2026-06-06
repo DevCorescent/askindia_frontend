@@ -34,6 +34,7 @@ export interface ProductSpec {
 
 export interface Product {
   id: string;
+  storeId?: string;   // DB store_id — present on DB-loaded products
   name: string;
   description: string;
   price: number;
@@ -269,6 +270,7 @@ export interface RevenueDataPoint {
 
 export interface Notification {
   id: string;
+  userId?: string;   // target user — required when persisting to DB
   type: 'order' | 'commission' | 'payout' | 'store' | 'system' | 'service';
   title: string;
   message: string;

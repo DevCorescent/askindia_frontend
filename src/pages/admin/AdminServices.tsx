@@ -24,7 +24,7 @@ const getCategoryName = (categorySlug: string) => {
 };
 
 export const AdminServices: React.FC = () => {
-  const { services, updateService } = useAppStore();
+  const { services, updateService, addNotification } = useAppStore();
 
   const [tab, setTab] = useState<TabFilter>('all');
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -38,14 +38,29 @@ export const AdminServices: React.FC = () => {
 
   const filtered = tab === 'all' ? services : services.filter(s => s.status === tab);
 
-  const approveService = (id: string) => {
-    updateService(id, { status: 'active' });
-    setSelectedService(prev => prev && prev.id === id ? { ...prev, status: 'active' } : prev);
+  const approveService = (svc: Service) => {
+    updateService(svc.id, { status: 'active' });
+    setSelectedService(prev => prev && prev.id === svc.id ? { ...prev, status: 'active' } : prev);
+    // Notify the service provider
+    addNotification({
+      userId:  svc.providerId,
+      type:    'service',
+      title:   'Service Approved!',
+      message: `Your service "${svc.title}" is now live and visible to customers.`,
+      link:    '/service-provider/services',
+    });
   };
 
-  const deactivateService = (id: string) => {
-    updateService(id, { status: 'inactive' });
-    setSelectedService(prev => prev && prev.id === id ? { ...prev, status: 'inactive' } : prev);
+  const deactivateService = (svc: Service) => {
+    updateService(svc.id, { status: 'inactive' });
+    setSelectedService(prev => prev && prev.id === svc.id ? { ...prev, status: 'inactive' } : prev);
+    addNotification({
+      userId:  svc.providerId,
+      type:    'service',
+      title:   'Service Deactivated',
+      message: `Your service "${svc.title}" has been deactivated. Contact support for details.`,
+      link:    '/service-provider/services',
+    });
   };
 
   const tabs: { key: TabFilter; label: string }[] = [
@@ -186,7 +201,7 @@ export const AdminServices: React.FC = () => {
                     </button>
                     {service.status === 'pending_review' && (
                       <button
-                        onClick={() => approveService(service.id)}
+                        onClick={() => approveService(service)}
                         className="flex-1 btn-success text-xs py-1.5"
                       >
                         <CheckCircle className="h-3.5 w-3.5" /> Approve
@@ -194,7 +209,7 @@ export const AdminServices: React.FC = () => {
                     )}
                     {service.status === 'active' && (
                       <button
-                        onClick={() => deactivateService(service.id)}
+                        onClick={() => deactivateService(service)}
                         className="flex-1 btn-danger text-xs py-1.5"
                       >
                         <XCircle className="h-3.5 w-3.5" /> Deactivate
@@ -202,7 +217,7 @@ export const AdminServices: React.FC = () => {
                     )}
                     {service.status === 'inactive' && (
                       <button
-                        onClick={() => approveService(service.id)}
+                        onClick={() => approveService(service)}
                         className="flex-1 btn-success text-xs py-1.5"
                       >
                         <CheckCircle className="h-3.5 w-3.5" /> Activate
@@ -288,21 +303,21 @@ export const AdminServices: React.FC = () => {
               <button onClick={() => setSelectedService(null)} className="btn-secondary">Close</button>
               {selectedService.status === 'pending_review' && (
                 <>
-                  <button onClick={() => deactivateService(selectedService.id)} className="btn-danger">
+                  <button onClick={() => deactivateService(selectedService)} className="btn-danger">
                     <XCircle className="h-4 w-4" /> Reject
                   </button>
-                  <button onClick={() => approveService(selectedService.id)} className="btn-success">
+                  <button onClick={() => approveService(selectedService)} className="btn-success">
                     <CheckCircle className="h-4 w-4" /> Approve
                   </button>
                 </>
               )}
               {selectedService.status === 'active' && (
-                <button onClick={() => deactivateService(selectedService.id)} className="btn-danger">
+                <button onClick={() => deactivateService(selectedService)} className="btn-danger">
                   <XCircle className="h-4 w-4" /> Deactivate
                 </button>
               )}
               {selectedService.status === 'inactive' && (
-                <button onClick={() => approveService(selectedService.id)} className="btn-success">
+                <button onClick={() => approveService(selectedService)} className="btn-success">
                   <CheckCircle className="h-4 w-4" /> Activate
                 </button>
               )}

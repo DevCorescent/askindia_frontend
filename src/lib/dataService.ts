@@ -514,16 +514,16 @@ export const mutations = {
       subcategory:      data.subcategory ?? null,
       price:            data.price,
       price_type:       data.priceType,
-      commission:       data.commission,
+      commission:       data.commission ?? 10,
       delivery_time:    data.deliveryTime,
       image_color:      data.imageColor,
       image_icon:       data.imageIcon,
       thumbnail:        null,
       images:           data.images ?? [],
-      status:           data.status,
-      featured:         data.featured,
-      available_cities: data.availableCities,
-      tags:             data.tags,
+      status:           data.status ?? 'pending_review',
+      featured:         data.featured ?? false,
+      available_cities: data.availableCities ?? [],
+      tags:             data.tags ?? [],
       includes:         data.includes ?? [],
       process:          data.process ?? [],
       rating:           0,
@@ -560,8 +560,9 @@ export const mutations = {
 
   async createOrder(data: Omit<Order, 'id'>): Promise<string> {
     const orderId = 'ORD' + Date.now().toString(36).toUpperCase();
+    // Accept any non-empty storeId; DB FK is nullable so null is fine for mock stores
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const storeId = UUID_RE.test(data.storeId ?? '') ? data.storeId : null;
+    const storeId = data.storeId && UUID_RE.test(data.storeId) ? data.storeId : null;
 
     await _post('orders', {
       id:                  orderId,
@@ -779,15 +780,33 @@ export const mutations = {
     });
   },
 
+  // ── Wallets ── (ensure wallet exists; trigger usually handles this on signup) ─
+
+  async ensureWallet(userId: string): Promise<void> {
+    try {
+      await _post('wallets', { user_id: userId });
+    } catch {
+      // Ignore conflict — wallet already exists
+    }
+  },
+
   // ── Profile ──────────────────────────────────────────────────────────────────
 
   async updateProfile(userId: string, patch: Partial<User>): Promise<void> {
     const update: Record<string, unknown> = {};
-    if (patch.name  !== undefined) update.name  = patch.name;
-    if (patch.phone !== undefined) update.phone = patch.phone;
-    if (patch.city  !== undefined) update.city  = patch.city;
-    if (patch.state !== undefined) update.state = patch.state;
+    if (patch.name      !== undefined) update.name       = patch.name;
+    if (patch.phone     !== undefined) update.phone      = patch.phone;
+    if (patch.city      !== undefined) update.city       = patch.city;
+    if (patch.state     !== undefined) update.state      = patch.state;
+    if (patch.avatar    !== undefined) update.avatar_url = patch.avatar;
+    if (patch.storeId   !== undefined) update.store_id   = patch.storeId;
     await _patch('profiles', `id=eq.${userId}`, update);
+  },
+
+  // ── Store invoice settings ───────────────────────────────────────────────────
+
+  async updateStoreInvoiceSettings(storeId: string, settings: Record<string, unknown>): Promise<void> {
+    await _patch('stores', `id=eq.${storeId}`, { invoice_settings: settings });
   },
 };
 
@@ -848,6 +867,7 @@ function mapStore(row: StoreRow): Store {
 function mapProduct(row: ProductRow): Product {
   return {
     id:               row.id,
+    storeId:          row.store_id ?? undefined,
     name:             row.name,
     description:      row.description,
     price:            Number(row.price),

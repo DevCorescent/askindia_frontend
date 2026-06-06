@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { formatCurrency } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
+import { mutations } from '../../lib/dataService';
+import { isSupabaseConfigured } from '../../lib/supabase';
 import type { Product } from '../../types';
 import { Search, X, ShoppingBag, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
@@ -69,16 +71,18 @@ export const AgentProducts: React.FC = () => {
     const subtotal = form.quantity * selectedProduct.price;
     const agentCommissionAmount = Math.round((agentRate / 100) * subtotal);
     const storeCommission = Math.round((selectedProduct.commission / 100) * subtotal);
+    // adminRevenue = total minus agent commission minus store commission
+    const adminRevenue = Math.max(0, subtotal - agentCommissionAmount - storeCommission);
 
-    // Find first active store
+    // Find the store that owns this product (fallback to first active store)
     const store = stores.find(s => s.status === 'active') ?? stores[0];
 
-    addOrder({
+    const orderData: Omit<import('../../types').Order, 'id'> = {
       customerId: `walk_in_${Date.now()}`,
       customerName: form.customerName.trim(),
       customerEmail: `${form.customerPhone.trim()}@agent.askindia`,
-      storeId: store?.id ?? 'unknown',
-      storeName: store?.name ?? 'Unknown Store',
+      storeId: store?.id ?? '',
+      storeName: store?.name ?? 'AskIndia Store',
       items: [{
         productId: selectedProduct.id,
         productName: selectedProduct.name,
@@ -91,7 +95,7 @@ export const AgentProducts: React.FC = () => {
       subtotal,
       total: subtotal,
       commissionTotal: storeCommission,
-      adminRevenue: storeCommission - agentCommissionAmount,
+      adminRevenue,
       status: 'pending',
       paymentMethod: 'cod',
       paymentStatus: 'pending',
@@ -102,7 +106,19 @@ export const AgentProducts: React.FC = () => {
       agentCode: agent.agentCode,
       agentCommission: agentCommissionAmount,
       createdAt: new Date().toISOString(),
-    });
+    };
+
+    if (isSupabaseConfigured) {
+      try {
+        const dbId = await mutations.createOrder(orderData);
+        addOrder(orderData, dbId);
+      } catch (err) {
+        console.error('[AgentProducts] createOrder DB error:', err);
+        addOrder(orderData); // fallback to local
+      }
+    } else {
+      addOrder(orderData);
+    }
 
     setSubmitting(false);
     setSuccessMessage(`Sale recorded! You earned ${formatCurrency(agentCommissionAmount)} commission.`);

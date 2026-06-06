@@ -89,7 +89,7 @@ interface AppState {
   updateWithdrawalRequest: (id: string, patch: Partial<WithdrawalRequest>) => void;
 
   // Notifications
-  addNotification: (notif: Omit<Notification, 'id'>) => void;
+  addNotification: (notif: Omit<Notification, 'id' | 'read' | 'createdAt'>) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   clearNotifications: () => void;
@@ -866,14 +866,18 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      creditAgentCommission: (agentId, amount) =>
+      creditAgentCommission: (agentId, amount) => {
         set(s => ({
           agents: s.agents.map(a =>
             a.id === agentId
               ? { ...a, walletBalance: a.walletBalance + amount, totalEarned: a.totalEarned + amount }
               : a
           ),
-        })),
+        }));
+        if (isSupabaseConfigured) {
+          mutations.creditWallet(agentId, amount, 'Commission earned').catch(err => console.error('[creditAgentCommission] DB error:', err));
+        }
+      },
 
       // ── Products ────────────────────────────────────────────────────────────
 
@@ -888,7 +892,9 @@ export const useAppStore = create<AppState>()(
         set(s => ({ products: [newProduct, ...s.products] }));
         if (isSupabaseConfigured) {
           const { currentUser } = get();
-          mutations.createProduct({ ...product, storeId: currentUser?.storeId })
+          // Use product's own storeId if set, otherwise fall back to currentUser's storeId
+          const storeId = (product as Product & { storeId?: string }).storeId ?? currentUser?.storeId;
+          mutations.createProduct({ ...product, storeId })
             .then(dbId => {
               set(s => ({
                 products: s.products.map(p => p.id === tempId ? { ...p, id: dbId } : p),
@@ -1131,38 +1137,71 @@ export const useAppStore = create<AppState>()(
 
       // ── Notifications ────────────────────────────────────────────────────────
 
-      addNotification: (notif) => {
+      addNotification: (notif: Omit<Notification, 'id' | 'read' | 'createdAt'>) => {
+        const tempId = `n_${Date.now()}`;
         const newNotif: Notification = {
           ...notif,
-          id: `n_${Date.now()}`,
+          id: tempId,
           read: false,
           createdAt: new Date().toISOString(),
         };
         set(s => ({ notifications: [newNotif, ...s.notifications] }));
+        if (isSupabaseConfigured && notif.userId) {
+          mutations.createNotification(notif.userId, {
+            type:    notif.type,
+            title:   notif.title,
+            message: notif.message,
+            link:    notif.link,
+          }).catch(err => console.error('[addNotification] DB error:', err));
+        }
       },
 
-      markNotificationRead: (id) =>
+      markNotificationRead: (id) => {
         set(s => ({
           notifications: s.notifications.map(n => n.id === id ? { ...n, read: true } : n),
-        })),
+        }));
+        if (isSupabaseConfigured) {
+          mutations.markNotificationRead(id).catch(err => console.error('[markNotificationRead] DB error:', err));
+        }
+      },
 
-      markAllNotificationsRead: () =>
+      markAllNotificationsRead: () => {
+        const { currentUser } = get();
         set(s => ({
           notifications: s.notifications.map(n => ({ ...n, read: true })),
-        })),
+        }));
+        if (isSupabaseConfigured && currentUser?.id) {
+          mutations.markAllNotificationsRead(currentUser.id).catch(err => console.error('[markAllNotificationsRead] DB error:', err));
+        }
+      },
 
       clearNotifications: () => set({ notifications: [] }),
 
-      updateProviderInvoiceSettings: (providerId, settings) =>
+      updateProviderInvoiceSettings: (providerId, settings) => {
         set(s => ({
           providerInvoiceSettings: {
             ...s.providerInvoiceSettings,
             [providerId]: { ...(s.providerInvoiceSettings[providerId] ?? {}), ...settings },
           },
-        })),
+        }));
+        // Find the store linked to this provider and persist invoice settings
+        if (isSupabaseConfigured) {
+          const { stores } = get();
+          const providerStore = stores.find(st => st.ownerId === providerId);
+          if (providerStore) {
+            mutations.updateStoreInvoiceSettings(providerStore.id, settings as Record<string, unknown>)
+              .catch(err => console.error('[updateProviderInvoiceSettings] DB error:', err));
+          }
+        }
+      },
 
-      updateHomepageConfig: (patch) =>
-        set(s => ({ homepageConfig: { ...s.homepageConfig, ...patch } })),
+      updateHomepageConfig: (patch) => {
+        set(s => ({ homepageConfig: { ...s.homepageConfig, ...patch } }));
+        if (isSupabaseConfigured) {
+          const updated = { ...get().homepageConfig, ...patch };
+          mutations.updateHomepageConfig(updated).catch(err => console.error('[updateHomepageConfig] DB error:', err));
+        }
+      },
 
       addHeroSlide: (slide) =>
         set(s => ({

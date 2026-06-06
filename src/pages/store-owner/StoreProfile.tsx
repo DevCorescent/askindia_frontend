@@ -65,10 +65,14 @@ export const StoreProfile: React.FC = () => {
 
   const save = () => {
     updateStore(myStore.id, {
-      name: storeName,
+      name:            storeName,
       tagline,
       description,
-      themeColor: selectedTheme,
+      themeColor:      selectedTheme,
+      // Sync commonly-used fields from invoice settings to the store record
+      gstNumber:       inv.gstin        ?? myStore.gstNumber,
+      bankAccount:     inv.bankAccount  ?? myStore.bankAccount,
+      bankIfsc:        inv.bankIfsc     ?? myStore.bankIfsc,
       invoiceSettings: inv,
     });
     setSaved(true);
