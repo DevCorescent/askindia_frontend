@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Store, ShoppingCart, Shield, Briefcase, Zap } from 'lucide-react';
+import { Eye, EyeOff, Store, ShoppingCart, Briefcase, Zap } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { AskIndiaLogo } from '../../components/AskIndiaLogo';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -13,8 +13,11 @@ const DEMO_ACCOUNTS = [
     password: 'admin@askindia',
     desc: 'Full platform control',
     icon: '🛡️',
-    color: 'border-slate-200 hover:border-slate-400 hover:bg-slate-50',
-    badge: 'bg-slate-700 text-white',
+    gradient: 'from-slate-700 to-slate-900',
+    ring: 'ring-slate-300 hover:ring-slate-500',
+    textColor: 'text-slate-100',
+    subColor: 'text-slate-400',
+    credColor: 'text-slate-300',
   },
   {
     role: 'Store Owner',
@@ -22,8 +25,11 @@ const DEMO_ACCOUNTS = [
     password: 'Demo@1234',
     desc: 'Manage store & orders',
     icon: '🏪',
-    color: 'border-brand-200 hover:border-brand-400 hover:bg-brand-50',
-    badge: 'bg-brand-600 text-white',
+    gradient: 'from-blue-600 to-indigo-700',
+    ring: 'ring-blue-200 hover:ring-blue-400',
+    textColor: 'text-blue-50',
+    subColor: 'text-blue-200',
+    credColor: 'text-blue-200',
   },
   {
     role: 'Service Provider',
@@ -31,8 +37,11 @@ const DEMO_ACCOUNTS = [
     password: 'Demo@1234',
     desc: 'List & manage services',
     icon: '🛠️',
-    color: 'border-violet-200 hover:border-violet-400 hover:bg-violet-50',
-    badge: 'bg-violet-600 text-white',
+    gradient: 'from-violet-600 to-purple-700',
+    ring: 'ring-violet-200 hover:ring-violet-400',
+    textColor: 'text-violet-50',
+    subColor: 'text-violet-200',
+    credColor: 'text-violet-200',
   },
   {
     role: 'Customer',
@@ -40,17 +49,23 @@ const DEMO_ACCOUNTS = [
     password: 'Demo@1234',
     desc: 'Browse & shop products',
     icon: '🛒',
-    color: 'border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50',
-    badge: 'bg-emerald-600 text-white',
+    gradient: 'from-emerald-600 to-teal-700',
+    ring: 'ring-emerald-200 hover:ring-emerald-400',
+    textColor: 'text-emerald-50',
+    subColor: 'text-emerald-200',
+    credColor: 'text-emerald-200',
   },
   {
     role: 'Agent',
     email: 'agent@demo.com',
     password: 'Demo@1234',
-    desc: 'Sell products, earn commission',
+    desc: 'Earn referral commissions',
     icon: '🤝',
-    color: 'border-orange-200 hover:border-orange-400 hover:bg-orange-50',
-    badge: 'bg-orange-600 text-white',
+    gradient: 'from-orange-500 to-amber-600',
+    ring: 'ring-orange-200 hover:ring-orange-400',
+    textColor: 'text-orange-50',
+    subColor: 'text-orange-100',
+    credColor: 'text-orange-100',
   },
 ] as const;
 
@@ -80,38 +95,16 @@ export const Login: React.FC = () => {
   const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
     setError('');
     setIsLoading(true);
-
-    if (isSupabaseConfigured) {
-      try {
-        const result = await authService.signIn(demoEmail, demoPassword);
-        if (result.success && result.user) {
-          setCurrentUser(result.user);
-          // Fire-and-forget: load user data now (onAuthStateChange fires later
-          // when the client discovers the localStorage session we wrote)
-          useAppStore.getState().loadFromSupabase(
-            result.user.id, result.user.role, result.user.storeId ?? null
-          ).catch(() => {});
-          navigateByRole(result.user.role, navigate);
-        } else {
-          setError(result.error ?? 'Demo login failed.');
-        }
-      } catch (err) {
-        console.error('[Login] Demo sign-in error:', err);
-        setError('Something went wrong. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
+    // Demo accounts always use local mock auth — they don't exist in Supabase,
+    // ensuring one-click demo logins work in both modes without any DB dependency.
+    await new Promise(r => setTimeout(r, 400));
+    const result = login(demoEmail, demoPassword);
+    setIsLoading(false);
+    if (result.success) {
+      const { currentUser } = useAppStore.getState();
+      navigateByRole(currentUser?.role ?? 'customer', navigate);
     } else {
-      // Mock mode — use local Zustand auth
-      await new Promise(r => setTimeout(r, 500));
-      const result = login(demoEmail, demoPassword);
-      setIsLoading(false);
-      if (result.success) {
-        const { currentUser } = useAppStore.getState();
-        navigateByRole(currentUser?.role ?? 'customer', navigate);
-      } else {
-        setError(result.error ?? 'Demo login failed.');
-      }
+      setError(result.error ?? 'Demo login failed.');
     }
   };
 
@@ -317,42 +310,39 @@ export const Login: React.FC = () => {
           <div className="mt-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="flex-1 h-px bg-slate-200" />
-              <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5">
-                <Zap className="h-3 w-3" /> Try Demo Accounts
+              <span className="text-xs text-slate-500 font-semibold flex items-center gap-1.5">
+                <Zap className="h-3 w-3 text-amber-500" /> Try Demo Accounts
               </span>
               <div className="flex-1 h-px bg-slate-200" />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2.5">
               {DEMO_ACCOUNTS.map(acc => (
                 <button
                   key={acc.role}
                   onClick={() => handleDemoLogin(acc.email, acc.password)}
                   disabled={isLoading}
-                  className={`flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all text-left disabled:opacity-50 ${acc.color}`}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r ${acc.gradient} ring-2 ${acc.ring} transition-all text-left disabled:opacity-50 active:scale-[0.98] shadow-sm`}
                 >
-                  <span className="text-xl flex-shrink-0">{acc.icon}</span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-900 truncate">{acc.role}</p>
-                    <p className="text-[10px] text-slate-400 truncate">{acc.desc}</p>
+                  <span className="text-2xl flex-shrink-0 w-9 text-center">{acc.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className={`text-sm font-bold ${acc.textColor}`}>{acc.role}</p>
+                      <p className={`text-[10px] ${acc.subColor} hidden sm:block`}>{acc.desc}</p>
+                    </div>
+                    <p className={`text-[11px] font-mono ${acc.credColor} truncate`}>{acc.email}</p>
+                  </div>
+                  <div className="flex-shrink-0 text-right hidden xs:block">
+                    <p className={`text-[10px] font-mono ${acc.credColor} opacity-80`}>pw: {acc.password}</p>
+                    <p className={`text-[10px] ${acc.subColor} mt-0.5`}>click to login →</p>
                   </div>
                 </button>
               ))}
             </div>
 
-            <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5">
-              <p className="text-xs text-amber-700 font-semibold mb-1.5">Demo credentials</p>
-              <div className="space-y-0.5">
-                {DEMO_ACCOUNTS.map(acc => (
-                  <div key={acc.role} className="flex items-center gap-2 text-xs text-amber-800">
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${acc.badge}`}>{acc.role}</span>
-                    <span className="font-mono truncate">{acc.email}</span>
-                    <span className="text-amber-500">·</span>
-                    <span className="font-mono text-amber-600">{acc.password}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <p className="text-center text-[10px] text-slate-400 mt-3">
+              One-click demo login — no sign-up needed
+            </p>
           </div>
         </div>
       </div>
