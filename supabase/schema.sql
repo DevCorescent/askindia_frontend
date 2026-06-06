@@ -759,15 +759,46 @@ BEGIN;
 COMMIT;
 
 -- ════════════════════════════════════════════════════════════════════════════
---  MIGRATIONS  — run these after initial schema is deployed
+--  MIGRATIONS  — run ALL of these in Supabase SQL Editor after initial schema
 -- ════════════════════════════════════════════════════════════════════════════
 
--- Migration 001: Allow admin-created products without a store (platform-level products)
--- Run in Supabase SQL Editor if products.store_id is NOT NULL:
+-- Migration 001: Allow admin-created products without a store (platform-level catalog)
 ALTER TABLE public.products ALTER COLUMN store_id DROP NOT NULL;
 
--- Migration 002: Ensure wallets exist for all existing profiles (in case trigger missed any)
+-- Migration 002: Ensure wallets exist for all existing profiles
 INSERT INTO public.wallets (user_id)
 SELECT id FROM public.profiles
 WHERE id NOT IN (SELECT user_id FROM public.wallets)
 ON CONFLICT (user_id) DO NOTHING;
+
+-- Migration 003: Create the homepage_config singleton row if it doesn't exist
+-- Without this row, all updateHomepageConfig calls silently update 0 rows
+INSERT INTO public.homepage_config (id) VALUES (1) ON CONFLICT DO NOTHING;
+
+-- Migration 004: Allow users to update/credit their own wallets
+-- Required so store owners, agents, and service providers can earn commissions
+DROP POLICY IF EXISTS "wallets_update" ON public.wallets;
+CREATE POLICY "wallets_update" ON public.wallets
+  FOR UPDATE USING (user_id = auth.uid() OR public.is_admin());
+
+-- Migration 005: Allow wallet owners to insert their own transaction records
+DROP POLICY IF EXISTS "wallet_tx_insert" ON public.wallet_transactions;
+CREATE POLICY "wallet_tx_insert" ON public.wallet_transactions
+  FOR INSERT WITH CHECK (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.wallets
+      WHERE id = wallet_transactions.wallet_id AND user_id = auth.uid()
+    )
+  );
+
+-- Migration 006: Allow any authenticated user to insert notifications (for order alerts)
+-- Needed so CustomerCheckout can notify store owners, etc.
+DROP POLICY IF EXISTS "notifications_insert" ON public.notifications;
+CREATE POLICY "notifications_insert" ON public.notifications
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Migration 007: Allow wallet INSERT (for ensureWallet / manual wallet creation)
+DROP POLICY IF EXISTS "wallets_insert" ON public.wallets;
+CREATE POLICY "wallets_insert" ON public.wallets
+  FOR INSERT WITH CHECK (user_id = auth.uid() OR public.is_admin());
