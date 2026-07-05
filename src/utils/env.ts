@@ -109,7 +109,10 @@ export const env = {
     cod:               b(import.meta.env.VITE_FEATURE_COD,                true),
   },
 
-  // ── Supabase ───────────────────────────────────────────────────
+  // ── Backend API ────────────────────────────────────────────────
+  apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api/v1',
+
+  // ── Supabase (kept for backward compat — no longer used by dataService) ──
   supabaseUrl:     import.meta.env.VITE_SUPABASE_URL      ?? '',
   supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
 

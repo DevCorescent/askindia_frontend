@@ -644,20 +644,20 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       currentUser: null,
-      registeredUsers: [adminSeed, demoStoreOwner, demoProvider, demoCustomer, demoAgent],
-      products: isSupabaseConfigured ? [] : demoProducts,
-      stores: isSupabaseConfigured ? [] : [demoStore],
-      services: isSupabaseConfigured ? [] : demoServices,
+      registeredUsers: [adminSeed],
+      products: [],
+      stores: [],
+      services: [],
       orders: [],
       serviceOrders: [],
       withdrawalRequests: [],
       notifications: [],
       cart: [],
-      agents: [demoAgentData],
+      agents: [],
       providerInvoiceSettings: {},
       homepageConfig: DEFAULT_HOMEPAGE_CONFIG,
-      userActivities: demoActivities,
-      abandonedCarts: demoAbandonedCarts,
+      userActivities: [],
+      abandonedCarts: [],
       customRoles: [],
       suspendedUsers: [],
       sidebarOpen: true,
@@ -1373,121 +1373,91 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'askindia-store',
-      version: 4,
-      migrate: (persistedState: unknown, fromVersion: number) => {
-        // Deep-merge the persisted state with the latest defaults so that
-        // any new fields (added across versions) are always present.
+      version: 5,
+      migrate: (persistedState: unknown, _fromVersion: number) => {
         const s = (persistedState ?? {}) as Record<string, unknown>;
         const hc = (s.homepageConfig ?? {}) as Record<string, unknown>;
 
-        // Ensure homepageConfig always has all required fields
         const patched: Record<string, unknown> = {
           ...DEFAULT_HOMEPAGE_CONFIG,
           ...hc,
-          // Always keep heroSlides if they exist and are non-empty
           heroSlides: Array.isArray(hc.heroSlides) && (hc.heroSlides as unknown[]).length > 0
             ? hc.heroSlides
             : DEFAULT_HOMEPAGE_CONFIG.heroSlides,
-          // Fill in any missing banner / logo arrays
           miniBanners: Array.isArray(hc.miniBanners) ? hc.miniBanners : DEFAULT_HOMEPAGE_CONFIG.miniBanners,
           brandLogos:  Array.isArray(hc.brandLogos)  ? hc.brandLogos  : DEFAULT_HOMEPAGE_CONFIG.brandLogos,
-          // New boolean fields — default true when not yet persisted
-          showBrandLogos:       hc.showBrandLogos       ?? true,
-          showNewsletter:       hc.showNewsletter        ?? true,
-          showTrendingSection:  hc.showTrendingSection   ?? true,
-          showBestDeals:        hc.showBestDeals         ?? true,
-          showCollectionList:   hc.showCollectionList    ?? true,
-          newsletterTitle:      hc.newsletterTitle       ?? DEFAULT_HOMEPAGE_CONFIG.newsletterTitle,
-          newsletterSubtitle:   hc.newsletterSubtitle    ?? DEFAULT_HOMEPAGE_CONFIG.newsletterSubtitle,
+          showBrandLogos:      hc.showBrandLogos      ?? true,
+          showNewsletter:      hc.showNewsletter       ?? true,
+          showTrendingSection: hc.showTrendingSection  ?? true,
+          showBestDeals:       hc.showBestDeals        ?? true,
+          showCollectionList:  hc.showCollectionList   ?? true,
+          newsletterTitle:     hc.newsletterTitle      ?? DEFAULT_HOMEPAGE_CONFIG.newsletterTitle,
+          newsletterSubtitle:  hc.newsletterSubtitle   ?? DEFAULT_HOMEPAGE_CONFIG.newsletterSubtitle,
         };
 
         const result: Record<string, unknown> = { ...s, homepageConfig: patched };
-        // In Supabase mode, drop catalogue data from old localStorage so the
-        // public prefetch (not stale cached data) controls what users see.
-        if (isSupabaseConfigured) {
-          delete result.products;
-          delete result.stores;
-          delete result.services;
-          delete result.orders;
-          delete result.serviceOrders;
+        // Always drop data that must come fresh from the backend
+        delete result.products;
+        delete result.stores;
+        delete result.services;
+        delete result.orders;
+        delete result.serviceOrders;
+        delete result.agents;
+        delete result.userActivities;
+        delete result.abandonedCarts;
+        delete result.notifications;
+        delete result.withdrawalRequests;
+        // Strip demo registeredUsers — keep only the admin seed
+        if (Array.isArray(result.registeredUsers)) {
+          result.registeredUsers = (result.registeredUsers as RegisteredUser[]).filter(
+            u => u.email === 'admin@askindia.shop'
+          );
         }
         return result;
       },
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
+        // Persisted across refreshes
         currentUser: state.currentUser,
         registeredUsers: state.registeredUsers,
-        // When Supabase is live, these are always fetched fresh — don't cache in localStorage
-        ...(isSupabaseConfigured ? {} : {
-          products: state.products,
-          stores: state.stores,
-          services: state.services,
-          orders: state.orders,
-          serviceOrders: state.serviceOrders,
-        }),
-        withdrawalRequests: state.withdrawalRequests,
-        notifications: state.notifications,
         cart: state.cart,
-        agents: state.agents,
         providerInvoiceSettings: state.providerInvoiceSettings,
         homepageConfig: state.homepageConfig,
-        userActivities: state.userActivities,
-        abandonedCarts: state.abandonedCarts,
         customRoles: state.customRoles,
         suspendedUsers: state.suspendedUsers,
         sidebarOpen: state.sidebarOpen,
+        // Backend-owned — NOT persisted; fetched fresh on every session restore
+        // (products, stores, services, orders, serviceOrders, agents,
+        //  notifications, withdrawalRequests, userActivities, abandonedCarts)
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
-        // Ensure admin always exists
-        if (!state.registeredUsers.some(u => u.email === 'admin@askindia.shop')) {
-          state.registeredUsers = [adminSeed, ...state.registeredUsers];
+        // Ensure admin seed is always present in local mock auth
+        if (!state.registeredUsers?.some(u => u.email === 'admin@askindia.shop')) {
+          state.registeredUsers = [adminSeed, ...(state.registeredUsers ?? [])];
         }
-        // Ensure demo users always exist
-        for (const demo of [demoStoreOwner, demoProvider, demoCustomer, demoAgent]) {
-          if (!state.registeredUsers.some(u => u.email === demo.email)) {
-            state.registeredUsers = [...state.registeredUsers, demo];
-          }
-        }
-        // Ensure demo store exists as fallback (Supabase mode: replaced once real data loads)
-        if (!state.stores.some(s => s.id === DEMO_STORE_ID)) {
-          state.stores = [demoStore, ...state.stores];
-        }
-        // Ensure agents array exists
-        if (!state.agents) state.agents = [demoAgentData];
-        else if (!state.agents.some(a => a.id === demoAgentData.id)) {
-          state.agents = [demoAgentData, ...state.agents];
-        }
-        // Seed demo products & services as fallback when store is empty
-        // (replaced by Supabase data once the public prefetch completes)
-        if (state.products.length === 0) state.products = demoProducts;
-        if (state.services.length === 0) state.services = demoServices;
-        // Patch old services that don't have the commission field
-        state.services = state.services.map(svc => ({
-          ...svc,
-          commission: svc.commission ?? 10,
-        }));
-        // Ensure providerInvoiceSettings exists (migration for old localStorage)
+        // Ensure optional arrays are initialised
+        if (!state.agents)           state.agents           = [];
+        if (!state.userActivities)   state.userActivities   = [];
+        if (!state.abandonedCarts)   state.abandonedCarts   = [];
+        if (!state.customRoles)      state.customRoles      = [];
+        if (!state.suspendedUsers)   state.suspendedUsers   = [];
         if (!state.providerInvoiceSettings) state.providerInvoiceSettings = {};
-        // Ensure homepageConfig exists (migration for old localStorage)
-        if (!state.homepageConfig) state.homepageConfig = DEFAULT_HOMEPAGE_CONFIG;
-        else {
-          if (!state.homepageConfig.heroSlides?.length) state.homepageConfig.heroSlides = DEFAULT_HERO_SLIDES;
-          if (!state.homepageConfig.miniBanners) state.homepageConfig.miniBanners = DEFAULT_MINI_BANNERS;
-          if (!state.homepageConfig.brandLogos) state.homepageConfig.brandLogos = DEFAULT_BRAND_LOGOS;
-          if (state.homepageConfig.showBrandLogos === undefined) state.homepageConfig.showBrandLogos = true;
-          if (state.homepageConfig.showNewsletter === undefined) state.homepageConfig.showNewsletter = true;
-          if (!state.homepageConfig.newsletterTitle) state.homepageConfig.newsletterTitle = DEFAULT_HOMEPAGE_CONFIG.newsletterTitle;
-          if (!state.homepageConfig.newsletterSubtitle) state.homepageConfig.newsletterSubtitle = DEFAULT_HOMEPAGE_CONFIG.newsletterSubtitle;
-          if (state.homepageConfig.showTrendingSection === undefined) state.homepageConfig.showTrendingSection = true;
-          if (state.homepageConfig.showBestDeals === undefined) state.homepageConfig.showBestDeals = true;
-          if (state.homepageConfig.showCollectionList === undefined) state.homepageConfig.showCollectionList = true;
+        // Ensure homepageConfig structural defaults
+        if (!state.homepageConfig) {
+          state.homepageConfig = DEFAULT_HOMEPAGE_CONFIG;
+        } else {
+          if (!state.homepageConfig.heroSlides?.length)  state.homepageConfig.heroSlides  = DEFAULT_HERO_SLIDES;
+          if (!state.homepageConfig.miniBanners)         state.homepageConfig.miniBanners = DEFAULT_MINI_BANNERS;
+          if (!state.homepageConfig.brandLogos)          state.homepageConfig.brandLogos  = DEFAULT_BRAND_LOGOS;
+          state.homepageConfig.showBrandLogos      ??= true;
+          state.homepageConfig.showNewsletter       ??= true;
+          state.homepageConfig.showTrendingSection  ??= true;
+          state.homepageConfig.showBestDeals        ??= true;
+          state.homepageConfig.showCollectionList   ??= true;
+          state.homepageConfig.newsletterTitle      ||= DEFAULT_HOMEPAGE_CONFIG.newsletterTitle;
+          state.homepageConfig.newsletterSubtitle   ||= DEFAULT_HOMEPAGE_CONFIG.newsletterSubtitle;
         }
-        // Ensure tracking arrays exist
-        if (!state.userActivities) state.userActivities = demoActivities;
-        if (!state.abandonedCarts) state.abandonedCarts = demoAbandonedCarts;
-        if (!state.customRoles) state.customRoles = [];
-        if (!state.suspendedUsers) state.suspendedUsers = [];
       },
     }
   )
