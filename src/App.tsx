@@ -49,6 +49,7 @@ const ServiceProviderProfile   = lazy(() => import('./pages/service-provider/Ser
 const CustomerStorefront = lazy(() => import('./pages/customer/CustomerStorefront').then(m => ({ default: m.CustomerStorefront })));
 const CustomerCart       = lazy(() => import('./pages/customer/CustomerCart').then(m => ({ default: m.CustomerCart })));
 const CustomerCheckout   = lazy(() => import('./pages/customer/CustomerCheckout').then(m => ({ default: m.CustomerCheckout })));
+const PaymentReturn      = lazy(() => import('./pages/customer/PaymentReturn').then(m => ({ default: m.PaymentReturn })));
 const CustomerOrders     = lazy(() => import('./pages/customer/CustomerOrders').then(m => ({ default: m.CustomerOrders })));
 const CustomerServices   = lazy(() => import('./pages/customer/CustomerServices').then(m => ({ default: m.CustomerServices })));
 const ProductDetail      = lazy(() => import('./pages/customer/ProductDetail').then(m => ({ default: m.ProductDetail })));
@@ -139,7 +140,8 @@ export default function App() {
             <Route path="/shop/services"         element={<AnyAuthRoute><CustomerServices /></AnyAuthRoute>} />
             <Route path="/shop/stores"           element={<AnyAuthRoute><StoresListing /></AnyAuthRoute>} />
             <Route path="/shop/cart"             element={<ProtectedRoute role="customer"><CustomerCart /></ProtectedRoute>} />
-            <Route path="/shop/checkout"         element={<ProtectedRoute role="customer"><CustomerCheckout /></ProtectedRoute>} />
+            <Route path="/shop/checkout"                element={<ProtectedRoute role="customer"><CustomerCheckout /></ProtectedRoute>} />
+            <Route path="/shop/checkout/payment-return" element={<PaymentReturn />} />
             <Route path="/shop/orders"           element={<ProtectedRoute role="customer"><CustomerOrders /></ProtectedRoute>} />
             <Route path="/shop/product/:id"      element={<ProductDetail />} />
             <Route path="/shop/service/:id"      element={<ServiceDetail />} />

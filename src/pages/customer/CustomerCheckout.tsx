@@ -8,9 +8,31 @@ import {
   MapPin, ChevronDown, ChevronUp, Plus,
 } from 'lucide-react';
 import { useTracking } from '../../hooks/useTracking';
+import { api } from '../../api/client';
 import { mutations } from '../../lib/dataService';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import type { SavedAddress } from '../../types';
+
+declare global {
+  interface Window {
+    Cashfree: (cfg: { mode: string }) => {
+      checkout: (opts: { paymentSessionId: string; redirectTarget?: string }) => Promise<void>;
+    };
+  }
+}
+
+function loadCashfreeSDK(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window.Cashfree === 'function') { resolve(); return; }
+    const existing = document.querySelector('script[src*="sdk.cashfree.com"]');
+    if (existing) { existing.addEventListener('load', () => resolve()); return; }
+    const script = document.createElement('script');
+    script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Cashfree SDK'));
+    document.head.appendChild(script);
+  });
+}
 
 type Step = 'address' | 'payment' | 'success';
 
@@ -187,12 +209,15 @@ export const CustomerCheckout: React.FC = () => {
     const localId = 'ORD' + Date.now().toString(36).toUpperCase();
     orderIdRef.current = localId;
 
+    // For Cashfree-routed methods the payment is initially pending
+    const initialPaymentStatus = (payMethod === 'upi' || payMethod === 'card') ? 'pending' : 'paid';
+
     try {
       if (hasRealSession) {
         try {
-          const dbId = await mutations.createOrder(orderData);
+          const dbId = await mutations.createOrder({ ...orderData, paymentStatus: initialPaymentStatus });
           orderIdRef.current = dbId;
-          addOrder(orderData, dbId);
+          addOrder({ ...orderData, paymentStatus: initialPaymentStatus }, dbId);
 
           // Notify store owner — fire-and-forget
           if (UUID_RE.test(targetStore?.ownerId ?? '')) {
@@ -204,7 +229,6 @@ export const CustomerCheckout: React.FC = () => {
             }).catch(() => {});
           }
 
-          // Save address to localStorage + update profile city/state/phone
           saveAddress(currentUser!.id, {
             firstName, lastName, phone,
             line1: line1.trim(), line2: line2.trim(),
@@ -214,10 +238,23 @@ export const CustomerCheckout: React.FC = () => {
             city: city.trim(), state: addrState, phone: phone.trim() || undefined,
           }).catch(() => {});
 
+          // Redirect to Cashfree for online payment methods
+          if (payMethod === 'upi' || payMethod === 'card') {
+            const { paymentSessionId } = await api.post<{ paymentSessionId: string; cfOrderId: string }>(
+              '/payments/cashfree/order', { orderId: dbId },
+            );
+            await loadCashfreeSDK();
+            const cashfree = window.Cashfree({
+              mode: (import.meta.env.VITE_CASHFREE_ENV as string) || 'sandbox',
+            });
+            // This redirects the page — no further code runs
+            cashfree.checkout({ paymentSessionId, redirectTarget: '_self' });
+            return; // guard against any accidental fall-through
+          }
+
         } catch (dbErr) {
-          console.warn('[Checkout] Supabase write failed, saving locally:', dbErr);
+          console.warn('[Checkout] DB write failed, saving locally:', dbErr);
           addOrder(orderData, localId);
-          // Still save address locally on Supabase failure
           if (currentUser?.id) {
             saveAddress(currentUser.id, {
               firstName, lastName, phone,
