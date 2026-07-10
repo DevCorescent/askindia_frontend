@@ -37,15 +37,30 @@ export function useSupabaseInit(): void {
       // Authenticated — restore session from stored access token
       try {
         const user = await authService.getSession();
+        const { setCurrentUser, loadFromSupabase } = useAppStore.getState();
+
         if (user) {
-          const { setCurrentUser, loadFromSupabase } = useAppStore.getState();
           setCurrentUser(user);
           await loadFromSupabase(user.id, user.role, user.storeId ?? null);
         } else {
-          useAppStore.setState({ supabaseReady: true });
+          // Backend may be sleeping (cold start). If we have a persisted user, still
+          // attempt to load data — loadFromSupabase is safe to call with stale credentials.
+          const cachedUser = useAppStore.getState().currentUser;
+          if (cachedUser) {
+            await loadFromSupabase(cachedUser.id, cachedUser.role, cachedUser.storeId ?? null);
+          } else {
+            useAppStore.setState({ supabaseReady: true });
+          }
         }
       } catch {
-        useAppStore.setState({ supabaseReady: true });
+        // Network error — try with cached user so stores still populate after backend wakes
+        const cachedUser = useAppStore.getState().currentUser;
+        if (cachedUser) {
+          const { loadFromSupabase } = useAppStore.getState();
+          await loadFromSupabase(cachedUser.id, cachedUser.role, cachedUser.storeId ?? null);
+        } else {
+          useAppStore.setState({ supabaseReady: true });
+        }
       }
     }
 

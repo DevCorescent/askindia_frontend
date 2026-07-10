@@ -11,8 +11,18 @@ import { useAppStore } from '../../store/useAppStore';
 import { IndianRupee, ShoppingCart, TrendingUp, Wallet } from 'lucide-react';
 
 export const StoreDashboard: React.FC = () => {
-  const { currentUser, stores, orders, products } = useAppStore();
+  const { currentUser, stores, orders, products, loadingData, supabaseReady } = useAppStore();
   const myStore = stores.find(s => s.id === currentUser?.storeId);
+
+  if (loadingData || !supabaseReady) {
+    return (
+      <AppLayout title="Store Dashboard">
+        <div className="flex items-center justify-center py-24">
+          <div className="animate-spin h-8 w-8 border-2 border-indigo-600 border-t-transparent rounded-full" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!myStore) {
     return (

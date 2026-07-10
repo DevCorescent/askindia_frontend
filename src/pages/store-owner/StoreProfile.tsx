@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
 import { CheckCircle, Globe, Palette, Store, FileText, ChevronDown, ChevronUp } from 'lucide-react';
@@ -14,7 +14,7 @@ const THEMES = [
 ];
 
 export const StoreProfile: React.FC = () => {
-  const { currentUser, stores, updateStore } = useAppStore();
+  const { currentUser, stores, updateStore, loadingData, supabaseReady } = useAppStore();
   const myStore = stores.find(s => s.id === currentUser?.storeId);
 
   const [selectedTheme, setSelectedTheme] = useState(myStore?.themeColor ?? '#4f46e5');
@@ -24,7 +24,6 @@ export const StoreProfile: React.FC = () => {
   const [saved, setSaved] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
 
-  // Invoice settings state
   const existing = myStore?.invoiceSettings ?? {};
   const [inv, setInv] = useState<InvoiceSettings>({
     businessName: existing.businessName ?? '',
@@ -48,8 +47,49 @@ export const StoreProfile: React.FC = () => {
     signatory: existing.signatory ?? '',
   });
 
+  // Re-sync form fields when store data loads (handles cold-start delay)
+  useEffect(() => {
+    if (!myStore) return;
+    setSelectedTheme(myStore.themeColor ?? '#4f46e5');
+    setStoreName(myStore.name ?? '');
+    setTagline(myStore.tagline ?? '');
+    const ex = myStore.invoiceSettings ?? {};
+    setInv({
+      businessName: ex.businessName ?? '',
+      gstin: ex.gstin ?? '',
+      pan: ex.pan ?? '',
+      address: ex.address ?? '',
+      city: ex.city ?? myStore.city ?? '',
+      state: ex.state ?? myStore.state ?? '',
+      stateCode: ex.stateCode ?? '',
+      pincode: ex.pincode ?? '',
+      phone: ex.phone ?? (currentUser?.phone ?? ''),
+      email: ex.email ?? (myStore.contactEmail ?? ''),
+      bankName: ex.bankName ?? '',
+      bankAccount: ex.bankAccount ?? (myStore.bankAccount ?? ''),
+      bankIfsc: ex.bankIfsc ?? (myStore.bankIfsc ?? ''),
+      bankBranch: ex.bankBranch ?? '',
+      upiId: ex.upiId ?? '',
+      hsnCode: ex.hsnCode ?? '',
+      gstRate: ex.gstRate ?? 18,
+      termsAndConditions: ex.termsAndConditions ?? '',
+      signatory: ex.signatory ?? '',
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myStore?.id]);
+
   const setInvField = (k: keyof InvoiceSettings, v: string | number) =>
     setInv(p => ({ ...p, [k]: v }));
+
+  if (loadingData || !supabaseReady) {
+    return (
+      <AppLayout title="My Store">
+        <div className="flex items-center justify-center py-24">
+          <div className="animate-spin h-8 w-8 border-2 border-indigo-600 border-t-transparent rounded-full" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!myStore) {
     return (

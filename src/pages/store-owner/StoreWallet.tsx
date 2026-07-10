@@ -7,7 +7,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { Wallet, ArrowDownToLine, TrendingUp, Clock, CheckCircle } from 'lucide-react';
 
 export const StoreWallet: React.FC = () => {
-  const { currentUser, stores, orders, withdrawalRequests, addWithdrawalRequest } = useAppStore();
+  const { currentUser, stores, orders, withdrawalRequests, addWithdrawalRequest, loadingData, supabaseReady } = useAppStore();
   const myStore = stores.find(s => s.id === currentUser?.storeId);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [amount, setAmount] = useState('');
@@ -50,6 +50,16 @@ export const StoreWallet: React.FC = () => {
       setIfsc('');
     }, 2000);
   };
+
+  if (loadingData || !supabaseReady) {
+    return (
+      <AppLayout title="Wallet & Payouts">
+        <div className="flex items-center justify-center py-24">
+          <div className="animate-spin h-8 w-8 border-2 border-indigo-600 border-t-transparent rounded-full" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!myStore) {
     return (
