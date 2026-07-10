@@ -12,7 +12,7 @@ const MAJOR_CITIES = [
 
 export const StoresListing: React.FC = () => {
   const navigate = useNavigate();
-  const { stores, products } = useAppStore();
+  const { stores, products, loadingData, supabaseReady } = useAppStore();
 
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'product' | 'service'>('all');
@@ -37,7 +37,7 @@ export const StoresListing: React.FC = () => {
   );
 
   const productCount = (storeId: string) =>
-    products.filter(p => p.status === 'active').length;
+    products.filter(p => p.storeId === storeId && p.status === 'active').length;
 
   const hasActiveFilters = typeFilter !== 'all' || cityFilter !== 'All Cities' || search;
 
@@ -46,6 +46,16 @@ export const StoresListing: React.FC = () => {
     setTypeFilter('all');
     setCityFilter('All Cities');
   };
+
+  if ((loadingData || !supabaseReady) && stores.length === 0) {
+    return (
+      <AppLayout title="All Stores">
+        <div className="flex items-center justify-center py-24">
+          <div className="animate-spin h-8 w-8 border-2 border-indigo-600 border-t-transparent rounded-full" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title="All Stores">

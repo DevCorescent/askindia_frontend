@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
+import { Loader2 } from 'lucide-react';
 import { formatCurrency } from '../../data/mockData';
 import type { Product } from '../../types';
 import {
@@ -15,7 +16,7 @@ import clsx from 'clsx';
 export const StoreStorefront: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { stores, products, cart, addToCart, currentUser } = useAppStore();
+  const { stores, products, cart, addToCart, currentUser, loadingData, supabaseReady } = useAppStore();
 
   const [addedId, setAddedId] = useState<string | null>(null);
   const [layoutOverride, setLayoutOverride] = useState<'grid' | 'list' | null>(null);
@@ -31,8 +32,8 @@ export const StoreStorefront: React.FC = () => {
 
   // ── All useMemo hooks MUST be before any early returns (Rules of Hooks) ──────
   const allActiveProducts = useMemo(
-    () => products.filter(p => p.status === 'active' && (!store || true)),
-    [products]
+    () => products.filter(p => p.status === 'active' && (!store || p.storeId === store.id)),
+    [products, store?.id]
   );
   const pinnedIds = custom?.featuredProductIds ?? [];
   const sorted = useMemo(() => {
@@ -50,6 +51,25 @@ export const StoreStorefront: React.FC = () => {
 
   const discount = (p: Product) =>
     p.mrp > p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0;
+
+  // ── Loading: backend may be cold-starting ────────────────────────────────────
+  if ((loadingData || !supabaseReady) && !store) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        <header className="bg-white border-b border-slate-200 px-4 py-3.5 flex items-center justify-between">
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors">
+            <ArrowLeft className="h-5 w-5" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+          <span className="text-sm text-slate-400">Loading store…</span>
+          <div className="w-16" />
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+        </div>
+      </div>
+    );
+  }
 
   // ── Store not found ─────────────────────────────────────────────────────────
   if (!store) {

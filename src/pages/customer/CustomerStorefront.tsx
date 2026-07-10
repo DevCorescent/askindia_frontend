@@ -446,8 +446,8 @@ export const CustomerStorefront: React.FC = () => {
                         )}
                         {!available && (
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <span className="bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full">
-                              Out of Stock
+                            <span className="bg-slate-700 text-white text-xs font-bold px-3 py-1.5 rounded-full">
+                              Not in your city
                             </span>
                           </div>
                         )}
@@ -493,7 +493,7 @@ export const CustomerStorefront: React.FC = () => {
                             )}
                           >
                             <ShoppingCart className="h-4 w-4" />
-                            {!available ? 'Out of Stock' : addedId === product.id ? 'Added to Cart!' : 'Add to Cart'}
+                            {!available ? 'Not in your city' : addedId === product.id ? 'Added to Cart!' : 'Add to Cart'}
                           </button>
                         ) : (
                           <span className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
