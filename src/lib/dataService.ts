@@ -157,6 +157,21 @@ export const mutations = {
     await api.del(`/products/${id}`);
   },
 
+  // ── Reviews ────────────────────────────────────────────────────────────────
+
+  async createReview(payload: {
+    orderId: string; productId: string; storeId?: string; rating: number; reviewText?: string;
+  }): Promise<void> {
+    await api.post('/reviews', payload);
+  },
+
+  async loadProductReviews(productId: string): Promise<{
+    reviews: { id: string; rating: number; reviewText: string; customerName?: string; createdAt: string }[];
+    avgRating: number; count: number;
+  }> {
+    return api.get(`/reviews/product/${productId}`);
+  },
+
   // ── Stores ─────────────────────────────────────────────────────────────────
 
   async createStore(data: Omit<Store, 'id' | 'createdAt' | 'totalSales' | 'totalOrders' | 'walletBalance'>): Promise<string> {

@@ -17,7 +17,10 @@ export const StoreOrders: React.FC = () => {
 
   const myStore = stores.find(s => s.id === currentUser?.storeId);
 
-  const myOrders = orders.filter(o => o.storeId === currentUser?.storeId);
+  // Backend already scopes orders to this store; filter only if storeId is available
+  const myOrders = currentUser?.storeId
+    ? orders.filter(o => o.storeId === currentUser.storeId)
+    : orders;
   const filtered = myOrders.filter(o => {
     const matchSearch = o.id.toLowerCase().includes(search.toLowerCase()) ||
       o.customerName.toLowerCase().includes(search.toLowerCase());

@@ -34,6 +34,7 @@ const AdminTracking   = lazy(() => import('./pages/admin/AdminTracking').then(m 
 // Store owner
 const StoreDashboard  = lazy(() => import('./pages/store-owner/StoreDashboard').then(m => ({ default: m.StoreDashboard })));
 const StoreProfile    = lazy(() => import('./pages/store-owner/StoreProfile').then(m => ({ default: m.StoreProfile })));
+const StoreProducts   = lazy(() => import('./pages/store-owner/StoreProducts').then(m => ({ default: m.StoreProducts })));
 const StoreOrders     = lazy(() => import('./pages/store-owner/StoreOrders').then(m => ({ default: m.StoreOrders })));
 const StoreWallet     = lazy(() => import('./pages/store-owner/StoreWallet').then(m => ({ default: m.StoreWallet })));
 const StoreCustomize  = lazy(() => import('./pages/store-owner/StoreCustomize').then(m => ({ default: m.StoreCustomize })));
@@ -122,8 +123,9 @@ export default function App() {
             <Route path="/admin/tracking"  element={<ProtectedRoute role="admin"><AdminTracking /></ProtectedRoute>} />
 
             {/* ── Store Owner ────────────────────────────────────────────────── */}
-            <Route path="/store"           element={<ProtectedRoute role="store_owner"><StoreDashboard /></ProtectedRoute>} />
+            <Route path="/store"            element={<ProtectedRoute role="store_owner"><StoreDashboard /></ProtectedRoute>} />
             <Route path="/store/profile"   element={<ProtectedRoute role="store_owner"><StoreProfile /></ProtectedRoute>} />
+            <Route path="/store/products"  element={<ProtectedRoute role="store_owner"><StoreProducts /></ProtectedRoute>} />
             <Route path="/store/orders"    element={<ProtectedRoute role="store_owner"><StoreOrders /></ProtectedRoute>} />
             <Route path="/store/wallet"    element={<ProtectedRoute role="store_owner"><StoreWallet /></ProtectedRoute>} />
             <Route path="/store/customize" element={<ProtectedRoute role="store_owner"><StoreCustomize /></ProtectedRoute>} />

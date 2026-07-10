@@ -27,11 +27,12 @@ const adminLinks = [
 ];
 
 const storeLinks = [
-  { to: '/store', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/store/profile', icon: Store, label: 'My Store' },
-  { to: '/store/customize', icon: Palette, label: 'Customize Store' },
-  { to: '/store/orders', icon: ClipboardList, label: 'Orders' },
-  { to: '/store/wallet', icon: Wallet, label: 'Wallet' },
+  { to: '/store',           icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/store/profile',   icon: Store,           label: 'My Store' },
+  { to: '/store/products',  icon: Package,         label: 'My Products' },
+  { to: '/store/orders',    icon: ClipboardList,   label: 'Orders' },
+  { to: '/store/wallet',    icon: Wallet,          label: 'Wallet' },
+  { to: '/store/customize', icon: Palette,         label: 'Customize Store' },
 ];
 
 const providerLinks = [

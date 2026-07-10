@@ -5,9 +5,10 @@ import { Modal } from '../../components/ui/Modal';
 import { formatCurrency, formatDate } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
 import type { Order, ServiceOrder } from '../../types';
-import { Package, MapPin, Calendar, Briefcase, ShoppingBag, Clock, CheckCircle, XCircle, Download } from 'lucide-react';
+import { Package, MapPin, Calendar, Briefcase, ShoppingBag, Clock, CheckCircle, XCircle, Download, Star, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { InvoiceModal } from '../../components/InvoiceTemplate';
+import { mutations } from '../../lib/dataService';
 import clsx from 'clsx';
 
 const TRACKING_STEPS = [
@@ -45,6 +46,33 @@ export const CustomerOrders: React.FC = () => {
   const [selectedServiceOrder, setSelectedServiceOrder] = useState<ServiceOrder | null>(null);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [invoiceSvcOrder, setInvoiceSvcOrder] = useState<ServiceOrder | null>(null);
+
+  // Review state
+  const [reviewOrder, setReviewOrder]   = useState<Order | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewHover, setReviewHover]   = useState(0);
+  const [reviewText, setReviewText]     = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewedOrders, setReviewedOrders]     = useState<Set<string>>(new Set());
+
+  const handleSubmitReview = async () => {
+    if (!reviewOrder || reviewRating === 0) return;
+    setSubmittingReview(true);
+    try {
+      const firstItem = reviewOrder.items[0];
+      await mutations.createReview({
+        orderId:    reviewOrder.id,
+        productId:  firstItem?.productId ?? '',
+        storeId:    reviewOrder.storeId,
+        rating:     reviewRating,
+        reviewText: reviewText.trim(),
+      });
+      setReviewedOrders(prev => new Set([...prev, reviewOrder.id]));
+      setReviewOrder(null);
+      setReviewRating(0);
+      setReviewText('');
+    } catch { /* silent */ } finally { setSubmittingReview(false); }
+  };
 
   const myOrders = orders.filter(o => o.customerId === currentUser?.id);
   const myServiceOrders = serviceOrders.filter(o => o.customerId === currentUser?.id)
@@ -185,6 +213,20 @@ export const CustomerOrders: React.FC = () => {
                         <MapPin className="h-3 w-3" /> {order.address}, {order.city}
                       </p>
                       <div className="flex items-center gap-2">
+                        {order.status === 'delivered' && !reviewedOrders.has(order.id) && (
+                          <button
+                            onClick={() => { setReviewOrder(order); setReviewRating(0); setReviewText(''); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition-colors"
+                          >
+                            <Star className="h-3.5 w-3.5" />
+                            Rate
+                          </button>
+                        )}
+                        {order.status === 'delivered' && reviewedOrders.has(order.id) && (
+                          <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium px-2">
+                            <Star className="h-3 w-3 fill-emerald-500" /> Reviewed
+                          </span>
+                        )}
                         {(order.status === 'delivered' || order.paymentStatus === 'paid') && (
                           <button
                             onClick={() => setInvoiceOrder(order)}
@@ -393,6 +435,59 @@ export const CustomerOrders: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/* Review Modal */}
+      {reviewOrder && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="font-bold text-slate-900 text-lg mb-1">Rate Your Order</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Order #{reviewOrder.id} · {reviewOrder.storeName}
+            </p>
+            {/* Stars */}
+            <div className="flex gap-2 justify-center mb-4">
+              {[1, 2, 3, 4, 5].map(star => (
+                <button
+                  key={star}
+                  onMouseEnter={() => setReviewHover(star)}
+                  onMouseLeave={() => setReviewHover(0)}
+                  onClick={() => setReviewRating(star)}
+                  className="transition-transform hover:scale-110"
+                >
+                  <Star className={`h-9 w-9 transition-colors ${
+                    star <= (reviewHover || reviewRating)
+                      ? 'text-amber-400 fill-amber-400'
+                      : 'text-slate-200 fill-slate-200'
+                  }`} />
+                </button>
+              ))}
+            </div>
+            {reviewRating > 0 && (
+              <p className="text-center text-sm font-medium text-amber-600 mb-3">
+                {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][reviewRating]}
+              </p>
+            )}
+            <textarea
+              className="input resize-none mb-4"
+              rows={3}
+              placeholder="Tell us about your experience (optional)…"
+              value={reviewText}
+              onChange={e => setReviewText(e.target.value)}
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setReviewOrder(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
+              <button
+                onClick={handleSubmitReview}
+                disabled={reviewRating === 0 || submittingReview}
+                className="btn-primary flex-1 justify-center gap-2"
+              >
+                {submittingReview ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Submit Review
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Invoice Modals */}
       {invoiceOrder && (
