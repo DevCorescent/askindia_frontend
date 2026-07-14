@@ -173,6 +173,24 @@ export interface OrderItem {
   commission: number;
 }
 
+export interface Review {
+  id: string;
+  orderId: string;
+  productId: string;
+  customerId: string;
+  storeId?: string;
+  rating: number;
+  reviewText: string;
+  createdAt: string;
+  customerName?: string;
+}
+
+export interface ProductReviews {
+  reviews: Review[];
+  avgRating: number;
+  count: number;
+}
+
 export interface Order {
   id: string;
   customerId: string;

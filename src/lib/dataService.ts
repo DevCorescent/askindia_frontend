@@ -2,7 +2,7 @@ import { api, setTokens, clearTokens, getAccessToken } from '../api/client';
 import type {
   User, Product, Service, Store, Order, ServiceOrder, Agent,
   WithdrawalRequest, Notification, HomepageConfig, UserActivity,
-  Role, AbandonedCart, InvoiceSettings,
+  Role, AbandonedCart, InvoiceSettings, Review, ProductReviews,
 } from '../types';
 
 function getRefreshToken(): string | null {
@@ -160,16 +160,18 @@ export const mutations = {
   // ── Reviews ────────────────────────────────────────────────────────────────
 
   async createReview(payload: {
-    orderId: string; productId: string; storeId?: string; rating: number; reviewText?: string;
+    orderId: string; productId: string; rating: number; reviewText?: string;
   }): Promise<void> {
     await api.post('/reviews', payload);
   },
 
-  async loadProductReviews(productId: string): Promise<{
-    reviews: { id: string; rating: number; reviewText: string; customerName?: string; createdAt: string }[];
-    avgRating: number; count: number;
-  }> {
+  async loadProductReviews(productId: string): Promise<ProductReviews> {
     return api.get(`/reviews/product/${productId}`);
+  },
+
+  /** Every review the signed-in customer has left — used to mark orders as rated. */
+  async loadMyReviews(): Promise<Review[]> {
+    return api.get('/reviews/mine');
   },
 
   // ── Stores ─────────────────────────────────────────────────────────────────
