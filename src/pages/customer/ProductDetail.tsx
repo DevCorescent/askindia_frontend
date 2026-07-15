@@ -321,10 +321,7 @@ export const ProductDetail: React.FC = () => {
                 <p className="text-sm font-medium text-brand-700">Sign in to add this product to your cart or buy now</p>
                 <div className="flex gap-3 justify-center">
                   <button onClick={() => navigate('/login')} className="btn-primary px-6 py-2.5 text-sm">
-                    Sign In
-                  </button>
-                  <button onClick={() => navigate('/register/customer')} className="btn-secondary px-6 py-2.5 text-sm">
-                    Create Account
+                    Sign In to Continue
                   </button>
                 </div>
               </div>

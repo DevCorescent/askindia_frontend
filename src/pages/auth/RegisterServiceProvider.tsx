@@ -6,6 +6,7 @@ import { SERVICE_CATEGORIES } from '../../data/mockData';
 import { AskIndiaLogo } from '../../components/AskIndiaLogo';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { authService } from '../../lib/dataService';
+import { RegistrationShell } from './RegistrationShell';
 import clsx from 'clsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -300,110 +301,23 @@ export const RegisterServiceProvider: React.FC = () => {
   const strength = data.password ? passwordStrength(data.password) : null;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Top nav */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <AskIndiaLogo size={30} showText={true} textClass="text-base" />
-          <span className="text-slate-300 mx-1">|</span>
-          <span className="text-sm text-slate-500">Service Provider Registration</span>
-        </div>
-        <Link to="/login" className="text-sm text-violet-600 font-medium hover:text-violet-700">
-          Already registered? Sign in
-        </Link>
-      </header>
-
-      <div className="max-w-5xl mx-auto px-4 py-10">
-        <div className="grid lg:grid-cols-3 gap-8">
-
-          {/* Left panel */}
-          <div className="hidden lg:block">
-            <div className="rounded-2xl p-6 text-white sticky top-8"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9, #4c1d95)' }}>
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4">
-                <Briefcase className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-bold mb-2">Grow Your Service Business</h3>
-              <p className="text-violet-200 text-sm mb-6 leading-relaxed">
-                Join thousands of service professionals earning on AskIndia's marketplace.
-              </p>
-              <div className="space-y-4">
-                {[
-                  { icon: <TrendingUp className="h-4 w-4" />, title: 'Earn More', desc: 'Access lakhs of verified customers across India' },
-                  { icon: <MapPin className="h-4 w-4" />, title: 'Local & Pan India', desc: 'Choose your service coverage area flexibly' },
-                  { icon: <Shield className="h-4 w-4" />, title: 'Secure Payments', desc: 'Guaranteed payouts within 3 business days' },
-                  { icon: <Star className="h-4 w-4" />, title: 'Build Reputation', desc: 'Get verified badges and customer reviews' },
-                ].map(item => (
-                  <div key={item.title} className="flex gap-3">
-                    <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                      {item.icon}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">{item.title}</p>
-                      <p className="text-xs text-violet-300">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Progress */}
-              <div className="mt-8 pt-6 border-t border-white/20">
-                <p className="text-xs text-violet-300 mb-3">Registration Progress</p>
-                <div className="space-y-2">
-                  {STEPS.map(s => (
-                    <div key={s.num} className="flex items-center gap-2">
-                      <div className={clsx(
-                        'w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0',
-                        step > s.num ? 'bg-emerald-400 text-white'
-                          : step === s.num ? 'bg-white text-violet-700'
-                          : 'bg-white/20 text-violet-300'
-                      )}>
-                        {step > s.num ? '✓' : s.num}
-                      </div>
-                      <span className={clsx(
-                        'text-xs',
-                        step === s.num ? 'text-white font-semibold' : step > s.num ? 'text-emerald-300' : 'text-violet-300'
-                      )}>
-                        {s.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right: form */}
-          <div className="lg:col-span-2">
-            {/* Mobile step progress */}
-            <div className="flex items-center mb-8 lg:hidden">
-              {STEPS.map((s, i) => (
-                <React.Fragment key={s.num}>
-                  <div className="flex flex-col items-center">
-                    <div className={clsx(
-                      'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all',
-                      step > s.num ? 'bg-emerald-600 border-emerald-600 text-white'
-                        : step === s.num ? 'bg-violet-600 border-violet-600 text-white'
-                        : 'bg-white border-slate-300 text-slate-400'
-                    )}>
-                      {step > s.num ? '✓' : s.num}
-                    </div>
-                    <span className={clsx(
-                      'text-xs mt-1 font-medium hidden sm:block',
-                      step === s.num ? 'text-violet-600' : step > s.num ? 'text-emerald-600' : 'text-slate-400'
-                    )}>
-                      {s.label}
-                    </span>
-                  </div>
-                  {i < STEPS.length - 1 && (
-                    <div className={clsx('flex-1 h-0.5 mx-1 mb-4', step > s.num ? 'bg-emerald-500' : 'bg-slate-200')} />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-
-            {/* Form card */}
-            <div className="card p-8">
+    <RegistrationShell
+      accent="violet"
+      roleLabel="Service Provider Registration"
+      panelIcon={<Briefcase className="h-7 w-7 text-white" />}
+      heading="Grow Your Service Business"
+      subtitle="Join thousands of service professionals earning on AskIndia's marketplace."
+      benefits={[
+        { icon: <TrendingUp className="h-5 w-5" />, title: 'Earn More', desc: 'Access lakhs of verified customers across India' },
+        { icon: <MapPin className="h-5 w-5" />, title: 'Local & Pan India', desc: 'Choose your service coverage area flexibly' },
+        { icon: <Shield className="h-5 w-5" />, title: 'Secure Payments', desc: 'Guaranteed payouts within 3 business days' },
+        { icon: <Star className="h-5 w-5" />, title: 'Build Reputation', desc: 'Get verified badges and customer reviews' },
+      ]}
+      steps={STEPS}
+      currentStep={step}
+    >
+      {/* Form card */}
+      <div className="card p-8">
 
               {/* ── Step 1: Personal Info ──────────────────────────────────── */}
               {step === 1 && (
@@ -786,12 +700,9 @@ export const RegisterServiceProvider: React.FC = () => {
               </div>
             </div>
 
-            <p className="text-center text-xs text-slate-400 mt-6">
-              By registering, you agree to comply with AskIndia's service provider policies and applicable Indian laws.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+      <p className="text-center text-xs text-slate-400 mt-6">
+        By registering, you agree to comply with AskIndia's service provider policies and applicable Indian laws.
+      </p>
+    </RegistrationShell>
   );
 };

@@ -231,10 +231,7 @@ export const ServiceDetail: React.FC = () => {
                 <p className="text-sm font-medium text-violet-700">Sign in to book this service</p>
                 <div className="flex gap-3 justify-center">
                   <button onClick={() => navigate('/login')} className="px-5 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors">
-                    Sign In
-                  </button>
-                  <button onClick={() => navigate('/register/customer')} className="btn-secondary px-5 py-2 text-sm">
-                    Create Account
+                    Sign In to Book
                   </button>
                 </div>
               </div>

@@ -633,8 +633,8 @@ const DEFAULT_HOMEPAGE_CONFIG: HomepageConfig = {
   showBrandLogos: true,
   brandLogos: DEFAULT_BRAND_LOGOS,
   showNewsletter: true,
-  newsletterTitle: 'Get 20% Off Your First Order',
-  newsletterSubtitle: 'Subscribe for exclusive deals, new arrivals & festive offers',
+  newsletterTitle: 'Stay in the Loop',
+  newsletterSubtitle: 'Subscribe for new arrivals, festive offers & the latest updates',
   showTrendingSection: true,
   showBestDeals: true,
   showCollectionList: true,
@@ -645,9 +645,12 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       currentUser: null,
       registeredUsers: [adminSeed],
-      products: [],
+      // Demo-seed fallback: shown until the backend responds. When the backend
+      // loads successfully these are overwritten; if it's unreachable (e.g. API
+      // server down in local dev) the storefront still has data instead of being empty.
+      products: demoProducts,
       stores: [],
-      services: [],
+      services: demoServices,
       orders: [],
       serviceOrders: [],
       withdrawalRequests: [],

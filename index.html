@@ -91,19 +91,65 @@
 
     <!-- ── Google Fonts ─────────────────────────────────────────── -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
 
-    <!-- ── Prevent FOUC on dark-mode capable devices ─────────────── -->
+    <!-- ── Prevent FOUC + initial loading screen ─────────────────── -->
     <style>
       html { background: #ffffff; }
       #root { min-height: 100dvh; }
+
+      /* Instant boot loader — shown before React mounts, replaced on render */
+      #app-boot-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        background: #ffffff;
+        z-index: 9999;
+      }
+      #app-boot-loader .wordmark {
+        font-family: 'Poppins', system-ui, sans-serif;
+        font-weight: 800;
+        font-size: 26px;
+        letter-spacing: -0.02em;
+        color: #0d1f6e;
+      }
+      #app-boot-loader .wordmark span { color: #f97316; }
+      #app-boot-loader .spinner {
+        width: 40px;
+        height: 40px;
+        border-radius: 9999px;
+        border: 4px solid #f1f5f9;
+        border-top-color: #f97316;
+        animation: app-boot-spin 0.7s linear infinite;
+      }
+      #app-boot-loader .hint {
+        font-family: 'Poppins', system-ui, sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        color: #94a3b8;
+        animation: app-boot-pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes app-boot-spin { to { transform: rotate(360deg); } }
+      @keyframes app-boot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     </style>
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Replaced by the React app on mount -->
+      <div id="app-boot-loader">
+        <div class="wordmark">Ask<span>India</span></div>
+        <div class="spinner"></div>
+        <div class="hint">Loading…</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
 
     <!-- Noscript fallback -->

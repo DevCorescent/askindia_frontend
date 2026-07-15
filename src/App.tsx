@@ -14,7 +14,6 @@ const Landing               = lazy(() => import('./pages/Landing').then(m => ({ 
 const Login                 = lazy(() => import('./pages/auth/Login').then(m => ({ default: m.Login })));
 const RegisterStoreOwner    = lazy(() => import('./pages/auth/RegisterStoreOwner').then(m => ({ default: m.RegisterStoreOwner })));
 const RegisterServiceProvider = lazy(() => import('./pages/auth/RegisterServiceProvider').then(m => ({ default: m.RegisterServiceProvider })));
-const RegisterCustomer      = lazy(() => import('./pages/auth/RegisterCustomer').then(m => ({ default: m.RegisterCustomer })));
 
 // Admin
 const AdminDashboard  = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -105,7 +104,8 @@ export default function App() {
             <Route path="/login"                   element={<Login />} />
             <Route path="/register/store-owner"    element={<RegisterStoreOwner />} />
             <Route path="/register/service-provider" element={<RegisterServiceProvider />} />
-            <Route path="/register/customer"       element={<RegisterCustomer />} />
+            {/* Customer self-signup removed — shoppers just browse & sign in */}
+            <Route path="/register/customer"       element={<Navigate to="/login" replace />} />
 
             {/* ── Admin ─────────────────────────────────────────────────────── */}
             <Route path="/admin"           element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />

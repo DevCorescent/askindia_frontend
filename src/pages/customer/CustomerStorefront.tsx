@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '../../components/layout/AppLayout';
-import { PRODUCT_CATEGORIES, formatCurrency } from '../../data/mockData';
+import { PRODUCT_CATEGORIES, formatCurrency, resolveCategoryId } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
 import { Search, ShoppingCart, Star, X, MapPin, SlidersHorizontal, Filter, Eye } from 'lucide-react';
 import type { Product } from '../../types';
@@ -54,7 +54,7 @@ export const CustomerStorefront: React.FC = () => {
   const filtered = useMemo(() => {
     return activeProducts
       .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.category.toLowerCase().includes(search.toLowerCase()))
-      .filter(p => selectedCats.length === 0 || selectedCats.includes(p.categoryId))
+      .filter(p => selectedCats.length === 0 || selectedCats.includes(resolveCategoryId(p)))
       .filter(p => !priceMin || p.price >= Number(priceMin))
       .filter(p => !priceMax || p.price <= Number(priceMax))
       .filter(p => !featuredOnly || p.featured)

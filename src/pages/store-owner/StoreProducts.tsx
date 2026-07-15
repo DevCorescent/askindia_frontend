@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
 import { mutations, dataLoaders } from '../../lib/dataService';
-import { formatCurrency } from '../../data/mockData';
+import { formatCurrency, PRODUCT_CATEGORIES, resolveCategoryId } from '../../data/mockData';
 import {
   Plus, Edit2, Trash2, Package, Search, AlertTriangle,
   RotateCcw, Loader2, Tag, TrendingUp,
@@ -22,11 +22,8 @@ const COLOR_OPTIONS = [
   'from-teal-400 to-teal-600',
 ];
 
-const CATEGORIES = [
-  'Electronics', 'Clothing', 'Food & Beverages', 'Home & Kitchen',
-  'Beauty & Care', 'Sports & Fitness', 'Books & Stationery',
-  'Toys & Games', 'Health & Wellness', 'Grocery', 'Other',
-];
+// Unified with the platform-wide category list so store products are filterable everywhere.
+const CATEGORIES = PRODUCT_CATEGORIES.map(c => c.name);
 
 type StatusFilter = 'all' | 'active' | 'draft' | 'out_of_stock';
 
@@ -45,7 +42,7 @@ interface FormData {
 
 const EMPTY_FORM: FormData = {
   name: '', description: '', price: '', mrp: '', stock: '0',
-  commission: '10', category: 'Other', imageIcon: '📦',
+  commission: '10', category: PRODUCT_CATEGORIES[0].name, imageIcon: '📦',
   imageColor: 'from-blue-400 to-blue-600', status: 'active',
 };
 
@@ -113,7 +110,7 @@ export const StoreProducts: React.FC = () => {
       mrp:         p.mrp ? String(p.mrp) : '',
       stock:       String(p.stock ?? 0),
       commission:  String(p.commission ?? 10),
-      category:    p.category ?? 'Other',
+      category:    p.category ?? CATEGORIES[0],
       imageIcon:   p.imageIcon ?? '📦',
       imageColor:  p.imageColor ?? COLOR_OPTIONS[0],
       status:      p.status === 'out_of_stock' ? 'active' : p.status as 'active' | 'draft',
@@ -134,9 +131,10 @@ export const StoreProducts: React.FC = () => {
         name:           form.name.trim(),
         description:    form.description.trim(),
         price:          Number(form.price),
-        mrp:            form.mrp ? Number(form.mrp) : undefined,
+        mrp:            form.mrp ? Number(form.mrp) : Number(form.price),
         stock:          Number(form.stock) || 0,
         commission:     Number(form.commission) || 10,
+        categoryId:     resolveCategoryId({ category: form.category }),
         category:       form.category,
         imageIcon:      form.imageIcon || '📦',
         imageColor:     form.imageColor,
