@@ -28,21 +28,20 @@ import {
   User,
   SlidersHorizontal,
   Gift,
-  Laptop,
   Shirt,
   Dumbbell,
-  Sofa,
-  Sparkles,
-  BookOpen,
-  Apple,
   Gamepad2,
   Car,
-  HeartPulse,
   Facebook,
   Instagram,
   Twitter,
   Youtube,
   Smartphone,
+  Lamp,
+  Flower2,
+  GraduationCap,
+  ShoppingCart,
+  Stethoscope,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
@@ -147,7 +146,7 @@ const CATEGORY_ICONS: Record<
   { Icon: LucideIcon; color: string; bg: string; grad: string }
 > = {
   c1: {
-    Icon: Laptop,
+    Icon: Smartphone,
     color: "text-sky-600",
     bg: "bg-sky-50",
     grad: "from-sky-400 to-blue-600",
@@ -165,25 +164,25 @@ const CATEGORY_ICONS: Record<
     grad: "from-orange-400 to-amber-600",
   },
   c4: {
-    Icon: Sofa,
+    Icon: Lamp,
     color: "text-amber-600",
     bg: "bg-amber-50",
     grad: "from-amber-400 to-orange-600",
   },
   c5: {
-    Icon: Sparkles,
+    Icon: Flower2,
     color: "text-fuchsia-600",
     bg: "bg-fuchsia-50",
     grad: "from-fuchsia-400 to-purple-600",
   },
   c6: {
-    Icon: BookOpen,
+    Icon: GraduationCap,
     color: "text-indigo-600",
     bg: "bg-indigo-50",
     grad: "from-indigo-400 to-violet-600",
   },
   c7: {
-    Icon: Apple,
+    Icon: ShoppingCart,
     color: "text-emerald-600",
     bg: "bg-emerald-50",
     grad: "from-emerald-400 to-green-600",
@@ -201,7 +200,7 @@ const CATEGORY_ICONS: Record<
     grad: "from-slate-400 to-slate-600",
   },
   c10: {
-    Icon: HeartPulse,
+    Icon: Stethoscope,
     color: "text-red-600",
     bg: "bg-red-50",
     grad: "from-red-400 to-rose-600",
@@ -546,7 +545,7 @@ const SectionHeader: React.FC<{
           </h2>
         </div>
         {subtitle && (
-          <p className="text-sm sm:text-base text-slate-500 mt-2 leading-relaxed max-w-xl">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1.5 leading-relaxed max-w-xs sm:max-w-md">
             {subtitle}
           </p>
         )}
@@ -1314,7 +1313,6 @@ export const Landing: React.FC = () => {
         <section className="reveal-on-scroll bg-white py-10 sm:py-14">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <SectionHeader
-              icon="🔥"
               title="Trending Products"
               subtitle="What shoppers across India are loving this week — handpicked and fast-moving."
               onViewAll={goAllProducts}
@@ -1350,7 +1348,6 @@ export const Landing: React.FC = () => {
         <section className="reveal-on-scroll bg-gradient-to-b from-slate-50 to-white py-10 sm:py-14">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <SectionHeader
-              icon="⚡"
               title="Best Deals"
               subtitle="Limited-time offers on top-rated products — the biggest savings, ending soon."
               onViewAll={goAllProducts}
@@ -1605,7 +1602,6 @@ export const Landing: React.FC = () => {
         <section className="reveal-on-scroll bg-white py-7 sm:py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <SectionHeader
-              icon="✨"
               title="Recommended For You"
               onViewAll={goAllProducts}
               eyebrow="Picked for you"
@@ -1640,7 +1636,6 @@ export const Landing: React.FC = () => {
         <section className="reveal-on-scroll bg-gradient-to-b from-slate-50 to-white py-7 sm:py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <SectionHeader
-              icon="🛠️"
               title={`Services ${city ? `in ${city}` : "Near You"}`}
               count={activeServices.length}
               onViewAll={activeServices.length > 0 ? goAllServices : undefined}
@@ -1714,7 +1709,6 @@ export const Landing: React.FC = () => {
           <section className="reveal-on-scroll bg-white py-7 sm:py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6">
               <SectionHeader
-                icon="🏪"
                 title="Top Stores"
                 onViewAll={() => {
                   if (!currentUser) {
