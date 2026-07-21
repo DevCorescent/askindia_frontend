@@ -6,6 +6,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { Search, ShoppingCart, Star, X, MapPin, SlidersHorizontal, Filter, Eye } from 'lucide-react';
 import type { Product } from '../../types';
 import clsx from 'clsx';
+import { ProductImage } from '../../components/ui/ProductImage';
 
 type SortOption = 'featured' | 'newest' | 'price_asc' | 'price_desc' | 'popular' | 'discount';
 
@@ -433,7 +434,7 @@ export const CustomerStorefront: React.FC = () => {
                         !available && 'opacity-70'
                       )}
                     >
-                      <div className={clsx('h-40 bg-gradient-to-br flex items-center justify-center text-5xl relative', product.imageColor)}>
+                      <ProductImage product={product} emojiClass="text-5xl" fit="contain" className="h-52">
                         {product.featured && (
                           <span className="absolute top-2 left-2 bg-white/90 backdrop-blur text-brand-700 text-xs font-bold px-2 py-0.5 rounded-full">
                             ⭐ Featured
@@ -451,8 +452,7 @@ export const CustomerStorefront: React.FC = () => {
                             </span>
                           </div>
                         )}
-                        {product.imageIcon}
-                      </div>
+                      </ProductImage>
 
                       <div className="p-4">
                         <p className="text-xs text-slate-400 mb-0.5 truncate">{product.category}</p>

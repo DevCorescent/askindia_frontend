@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
+import { StoreLogo } from "../components/ui/StoreLogo";
 import { useTracking } from "../hooks/useTracking";
 import {
   PRODUCT_CATEGORIES,
@@ -1763,9 +1764,8 @@ export const Landing: React.FC = () => {
                               </>
                             )}
                           </div>
-                          <div className="absolute bottom-0 left-3 translate-y-1/2 w-11 h-11 rounded-xl bg-white shadow-md flex items-center justify-center text-2xl border-2 border-white">
-                            {store.logo}
-                          </div>
+                          <StoreLogo logo={store.logo} name={store.name}
+                            className="absolute bottom-0 left-3 translate-y-1/2 w-11 h-11 rounded-xl bg-white shadow-md text-2xl border-2 border-white" />
                         </div>
                         <div className="pt-8 px-3 pb-3">
                           <p className="text-sm font-bold text-slate-900 leading-tight truncate group-hover:text-accent-600 transition-colors">

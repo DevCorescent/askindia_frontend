@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
+import { ProductImage } from '../../components/ui/ProductImage';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../data/mockData';
 import {
@@ -688,9 +689,7 @@ export const CustomerCheckout: React.FC = () => {
           <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
             {cart.map(({ product, quantity }) => (
               <div key={product.id} className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${product.imageColor} flex items-center justify-center text-xl flex-shrink-0`}>
-                  {product.imageIcon}
-                </div>
+                <ProductImage product={product} fit="contain" className="w-10 h-10 rounded-lg flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-slate-900 truncate">{product.name}</p>
                   <p className="text-xs text-slate-400">Qty: {quantity}</p>

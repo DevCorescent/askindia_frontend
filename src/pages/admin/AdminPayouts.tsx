@@ -4,6 +4,7 @@ import { statusBadge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { formatCurrency, formatDate } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
+import { StoreLogo } from '../../components/ui/StoreLogo';
 import type { WithdrawalRequest } from '../../types';
 import { CheckCircle, XCircle, Wallet, Clock, ArrowDownToLine, Store, Briefcase } from 'lucide-react';
 
@@ -129,7 +130,7 @@ export const AdminPayouts: React.FC = () => {
                   <tr key={store.id} className="hover:bg-slate-50">
                     <td className="table-td">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">{store.logo}</span>
+                        <StoreLogo logo={store.logo} name={store.name} className="w-7 h-7 rounded-md text-lg flex-shrink-0" />
                         <span className="font-medium text-sm">{store.name}</span>
                       </div>
                     </td>

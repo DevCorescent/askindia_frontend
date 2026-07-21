@@ -1,5 +1,6 @@
 import React from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
+import { StoreLogo } from '../../components/ui/StoreLogo';
 import { StatsCard } from '../../components/ui/StatsCard';
 import { statusBadge } from '../../components/ui/Badge';
 import {
@@ -8,6 +9,7 @@ import {
 } from 'recharts';
 import { formatCurrency, formatDate, computeMonthlyRevenue } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
+import { ProductImage } from '../../components/ui/ProductImage';
 import { IndianRupee, ShoppingCart, TrendingUp, Wallet } from 'lucide-react';
 
 export const StoreDashboard: React.FC = () => {
@@ -56,9 +58,7 @@ export const StoreDashboard: React.FC = () => {
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIj48ZyBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiPjxwYXRoIGQ9Ik0zNiAzNHY2aDZ2LTZoLTZ6bTYtNmg2di02aC02djZ6bS0xMiA2aDZ2LTZoLTZ2NnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-30" />
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-3xl">
-                {myStore.logo}
-              </div>
+              <StoreLogo logo={myStore.logo} name={myStore.name} className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl text-3xl" />
               <div>
                 <p className="text-xl font-bold">{myStore.name}</p>
                 <p className="text-white/70 text-sm">{myStore.tagline}</p>
@@ -184,9 +184,7 @@ export const StoreDashboard: React.FC = () => {
               {topProducts.map((p, i) => (
                 <div key={p.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-slate-50">
                   <span className="text-xs text-slate-400 font-bold w-4">#{i + 1}</span>
-                  <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${p.imageColor} flex items-center justify-center text-lg`}>
-                    {p.imageIcon}
-                  </div>
+                  <ProductImage product={p} className="w-9 h-9 rounded-lg flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-900 truncate">{p.name}</p>
                     <p className="text-xs text-slate-400">{p.sold} sold</p>

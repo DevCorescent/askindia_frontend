@@ -5,11 +5,32 @@ import { Modal } from '../../components/ui/Modal';
 import { formatCurrency, formatDate } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
 import type { Order } from '../../types';
-import { Search, Eye, Download } from 'lucide-react';
+import { Search, Eye, Download, Check, Package, Truck, PackageCheck, X, Clock } from 'lucide-react';
 import { InvoiceModal } from '../../components/InvoiceTemplate';
+import { ProductImage } from '../../components/ui/ProductImage';
+
+// Fulfilment lifecycle the store owner drives (mirrors the admin controls).
+const FLOW: Order['status'][] = ['pending', 'processing', 'shipped', 'delivered'];
+const STEPS: { key: Order['status']; label: string; icon: React.ElementType }[] = [
+  { key: 'pending',    label: 'Order Placed', icon: Check },
+  { key: 'processing', label: 'Processing',   icon: Package },
+  { key: 'shipped',    label: 'Shipped',      icon: Truck },
+  { key: 'delivered',  label: 'Delivered',    icon: PackageCheck },
+];
 
 export const StoreOrders: React.FC = () => {
-  const { currentUser, orders, stores } = useAppStore();
+  const { currentUser, orders, stores, products } = useAppStore();
+  // Resolve an order line-item to its live product visual (real photo when available).
+  const itemVisual = (item: { productId?: string; productName: string; productIcon: string; productColor: string }) => {
+    const prod = products.find(p => p.id === item.productId);
+    return {
+      name:       item.productName,
+      thumbnail:  prod?.thumbnail,
+      images:     prod?.images,
+      imageColor: item.productColor,
+      imageIcon:  item.productIcon,
+    };
+  };
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -89,9 +110,7 @@ export const StoreOrders: React.FC = () => {
                     <td className="table-td text-sm">
                       <div className="flex -space-x-1">
                         {order.items.slice(0, 3).map((item, i) => (
-                          <div key={i} className={`w-7 h-7 rounded-lg bg-gradient-to-br ${item.productColor} flex items-center justify-center text-sm border-2 border-white`}>
-                            {item.productIcon}
-                          </div>
+                          <ProductImage key={i} product={itemVisual(item)} emojiClass="text-sm" className="w-7 h-7 rounded-lg border-2 border-white" />
                         ))}
                         {order.items.length > 3 && <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 border-2 border-white">+{order.items.length - 3}</div>}
                       </div>
@@ -141,6 +160,58 @@ export const StoreOrders: React.FC = () => {
               <p className="font-mono text-brand-600 font-bold">#{selectedOrder.id.toUpperCase()}</p>
               {statusBadge(selectedOrder.status)}
             </div>
+
+            {/* Fulfilment tracker + controls */}
+            {selectedOrder.status === 'cancelled' ? (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
+                <X className="h-5 w-5" />
+                <div>
+                  <p className="font-semibold text-sm">Order Cancelled</p>
+                  {selectedOrder.cancelReason && <p className="text-xs text-red-600">{selectedOrder.cancelReason}</p>}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                {/* Stepper */}
+                <div className="flex items-center">
+                  {STEPS.map((step, i) => {
+                    const curIdx = FLOW.indexOf(selectedOrder.status);
+                    const done = i <= curIdx;
+                    const Icon = step.icon;
+                    return (
+                      <React.Fragment key={step.key}>
+                        <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                            done ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-400'
+                          }`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <span className={`text-[11px] font-medium ${done ? 'text-slate-700' : 'text-slate-400'}`}>{step.label}</span>
+                        </div>
+                        {i < STEPS.length - 1 && (
+                          <div className={`flex-1 h-0.5 mx-1 -mt-5 ${i < curIdx ? 'bg-brand-600' : 'bg-slate-200'}`} />
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+
+                {/* Read-only status note */}
+                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-200">
+                  {selectedOrder.status === 'delivered' ? (
+                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
+                      <PackageCheck className="h-4 w-4" /> Order delivered
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                      <Clock className="h-4 w-4 text-brand-500" />
+                      Currently <span className="font-semibold text-slate-700 capitalize">{selectedOrder.status}</span>
+                    </span>
+                  )}
+                  <span className="text-xs text-slate-400 ml-auto">Fulfilment is updated by AskIndia</span>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-50 rounded-xl p-4">
                 <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Customer</p>
@@ -157,9 +228,7 @@ export const StoreOrders: React.FC = () => {
               {selectedOrder.items.map((item, i) => (
                 <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${item.productColor} flex items-center justify-center`}>
-                      {item.productIcon}
-                    </div>
+                    <ProductImage product={itemVisual(item)} emojiClass="text-base" className="w-9 h-9 rounded-lg" />
                     <div>
                       <p className="text-sm font-medium">{item.productName}</p>
                       <p className="text-xs text-slate-500">Qty: {item.quantity}</p>

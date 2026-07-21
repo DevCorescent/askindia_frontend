@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { InvoiceModal } from '../../components/InvoiceTemplate';
 import { mutations } from '../../lib/dataService';
 import clsx from 'clsx';
+import { ProductImage, productPhoto } from '../../components/ui/ProductImage';
 
 const TRACKING_STEPS = [
   { key: 'pending', label: 'Order Placed', icon: '📋' },
@@ -39,7 +40,18 @@ const ServiceStatusBadge: React.FC<{ status: string }> = ({ status }) => {
 const SERVICE_TIMELINE: ServiceOrder['status'][] = ['pending', 'confirmed', 'in_progress', 'completed'];
 
 export const CustomerOrders: React.FC = () => {
-  const { currentUser, orders, serviceOrders, stores, providerInvoiceSettings } = useAppStore();
+  const { currentUser, orders, serviceOrders, stores, providerInvoiceSettings, products } = useAppStore();
+  // Resolve an order line-item to its live product visual (real photo when available).
+  const itemVisual = (item: { productId?: string; productName: string; productIcon: string; productColor: string }) => {
+    const prod = products.find(p => p.id === item.productId);
+    return {
+      name:       item.productName,
+      thumbnail:  prod?.thumbnail,
+      images:     prod?.images,
+      imageColor: item.productColor,
+      imageIcon:  item.productIcon,
+    };
+  };
   const navigate = useNavigate();
   const [tab, setTab] = useState<'products' | 'services'>('products');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -212,9 +224,7 @@ export const CustomerOrders: React.FC = () => {
                     <div className="flex items-center gap-3 mb-4">
                       <div className="flex -space-x-2">
                         {order.items.slice(0, 3).map((item, i) => (
-                          <div key={i} className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.productColor} flex items-center justify-center text-2xl border-2 border-white`}>
-                            {item.productIcon}
-                          </div>
+                          <ProductImage key={i} product={itemVisual(item)} emojiClass="text-2xl" className="w-12 h-12 rounded-xl border-2 border-white" />
                         ))}
                       </div>
                       <div>
@@ -442,9 +452,7 @@ export const CustomerOrders: React.FC = () => {
               {selectedOrder.items.map((item, i) => (
                 <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${item.productColor} flex items-center justify-center text-xl`}>
-                      {item.productIcon}
-                    </div>
+                    <ProductImage product={itemVisual(item)} emojiClass="text-lg" className="w-10 h-10 rounded-lg" />
                     <div>
                       <p className="text-sm font-medium">{item.productName}</p>
                       <p className="text-xs text-slate-500">Qty: {item.quantity}</p>
@@ -510,13 +518,15 @@ export const CustomerOrders: React.FC = () => {
                       disabled={done}
                       title={item.productName}
                       className={clsx(
-                        'relative w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center text-xl border-2 transition-all bg-gradient-to-br',
-                        item.productColor,
+                        'relative w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center text-xl border-2 transition-all',
+                        productPhoto(itemVisual(item)) ? 'bg-white' : `bg-gradient-to-br ${item.productColor}`,
                         active ? 'border-brand-500' : 'border-transparent',
                         done && 'opacity-40 cursor-not-allowed',
                       )}
                     >
-                      {item.productIcon}
+                      {productPhoto(itemVisual(item))
+                        ? <img src={productPhoto(itemVisual(item))} alt={item.productName} className="w-full h-full object-cover" />
+                        : item.productIcon}
                       {done && (
                         <span className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5">
                           <CheckCircle className="h-3 w-3" />

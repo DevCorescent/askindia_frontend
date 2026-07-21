@@ -5,9 +5,11 @@ import { mutations, dataLoaders } from '../../lib/dataService';
 import { formatCurrency, PRODUCT_CATEGORIES, resolveCategoryId } from '../../data/mockData';
 import {
   Plus, Edit2, Trash2, Package, Search, AlertTriangle,
-  RotateCcw, Loader2, Tag, TrendingUp,
+  RotateCcw, Loader2, Tag, TrendingUp, ImagePlus, X, Star,
 } from 'lucide-react';
 import type { Product } from '../../types';
+import { ProductImage } from '../../components/ui/ProductImage';
+import { uploadProductImage, isImageFile, MAX_IMAGES } from '../../utils/imageUpload';
 
 const COLOR_OPTIONS = [
   'from-blue-400 to-blue-600',
@@ -37,13 +39,14 @@ interface FormData {
   category: string;
   imageIcon: string;
   imageColor: string;
+  images: string[];
   status: 'active' | 'draft';
 }
 
 const EMPTY_FORM: FormData = {
   name: '', description: '', price: '', mrp: '', stock: '0',
   commission: '10', category: PRODUCT_CATEGORIES[0].name, imageIcon: '📦',
-  imageColor: 'from-blue-400 to-blue-600', status: 'active',
+  imageColor: 'from-blue-400 to-blue-600', images: [], status: 'active',
 };
 
 export const StoreProducts: React.FC = () => {
@@ -59,6 +62,7 @@ export const StoreProducts: React.FC = () => {
   const [form, setForm]               = useState<FormData>(EMPTY_FORM);
   const [saving, setSaving]           = useState(false);
   const [formError, setFormError]     = useState('');
+  const [uploading, setUploading]     = useState(false);
 
   const [restockId, setRestockId]     = useState<string | null>(null);
   const [restockQty, setRestockQty]   = useState('');
@@ -113,12 +117,43 @@ export const StoreProducts: React.FC = () => {
       category:    p.category ?? CATEGORIES[0],
       imageIcon:   p.imageIcon ?? '📦',
       imageColor:  p.imageColor ?? COLOR_OPTIONS[0],
+      images:      p.images ?? [],
       status:      p.status === 'out_of_stock' ? 'active' : p.status as 'active' | 'draft',
     });
     setEditId(p.id);
     setFormError('');
     setShowForm(true);
   };
+
+  // ── Image helpers ─────────────────────────────────────────────────────────
+  const handleAddImages = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const room = MAX_IMAGES - form.images.length;
+    if (room <= 0) { setFormError(`You can add up to ${MAX_IMAGES} images.`); return; }
+    const picked = Array.from(files).filter(isImageFile).slice(0, room);
+    if (picked.length === 0) { setFormError('Please choose valid image files.'); return; }
+
+    setUploading(true); setFormError('');
+    try {
+      const urls = await Promise.all(picked.map(uploadProductImage));
+      setForm(f => ({ ...f, images: [...f.images, ...urls] }));
+    } catch (e) {
+      setFormError((e as Error).message || 'Could not upload image. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeImage = (idx: number) =>
+    setForm(f => ({ ...f, images: f.images.filter((_, i) => i !== idx) }));
+
+  const makePrimary = (idx: number) =>
+    setForm(f => {
+      if (idx === 0) return f;
+      const next = [...f.images];
+      const [chosen] = next.splice(idx, 1);
+      return { ...f, images: [chosen, ...next] };
+    });
 
   const handleSave = async () => {
     if (!form.name.trim())                                    { setFormError('Product name is required.'); return; }
@@ -148,7 +183,8 @@ export const StoreProducts: React.FC = () => {
         brand:          '',
         warranty:       '',
         returnPolicy:   '',
-        images:         [],
+        images:         form.images,
+        thumbnail:      form.images[0],
         sold:           0,
       };
 
@@ -287,9 +323,7 @@ export const StoreProducts: React.FC = () => {
                         {/* Product */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${p.imageColor} flex items-center justify-center text-xl flex-shrink-0`}>
-                              {p.imageIcon}
-                            </div>
+                            <ProductImage product={p} emojiClass="text-xl" className="w-10 h-10 rounded-xl flex-shrink-0" />
                             <div>
                               <p className="font-medium text-slate-900">{p.name}</p>
                               <p className="text-xs text-slate-400">{p.category}</p>
@@ -393,9 +427,13 @@ export const StoreProducts: React.FC = () => {
             <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
               {/* Preview */}
               <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${form.imageColor} flex items-center justify-center text-2xl flex-shrink-0`}>
-                  {form.imageIcon || '📦'}
-                </div>
+                {form.images[0] ? (
+                  <img src={form.images[0]} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-slate-200" />
+                ) : (
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${form.imageColor} flex items-center justify-center text-2xl flex-shrink-0`}>
+                    {form.imageIcon || '📦'}
+                  </div>
+                )}
                 <div>
                   <p className="font-semibold text-slate-900">{form.name || 'Product Name'}</p>
                   <p className="text-sm text-slate-400">{form.category}</p>
@@ -425,6 +463,53 @@ export const StoreProducts: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
                 <textarea className="input resize-none" rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Brief description…" />
+              </div>
+
+              {/* Product Photos */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Product Photos
+                  <span className="text-xs text-slate-400 ml-1">({form.images.length}/{MAX_IMAGES}) — first photo is the cover</span>
+                </label>
+                <div className="grid grid-cols-4 gap-2.5">
+                  {form.images.map((src, i) => (
+                    <div key={i} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200">
+                      <img src={src} alt="" className="w-full h-full object-cover" />
+                      {i === 0 && (
+                        <span className="absolute top-1 left-1 inline-flex items-center gap-0.5 bg-brand-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+                          <Star className="h-2.5 w-2.5 fill-current" /> Cover
+                        </span>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                        {i !== 0 && (
+                          <button type="button" onClick={() => makePrimary(i)} title="Make cover"
+                            className="p-1.5 rounded-lg bg-white/90 text-slate-700 hover:bg-white">
+                            <Star className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button type="button" onClick={() => removeImage(i)} title="Remove"
+                          className="p-1.5 rounded-lg bg-white/90 text-red-600 hover:bg-white">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {form.images.length < MAX_IMAGES && (
+                    <label className={`aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors ${
+                      uploading ? 'border-slate-200 text-slate-300' : 'border-slate-300 text-slate-400 hover:border-brand-400 hover:text-brand-500'
+                    }`}>
+                      {uploading ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <><ImagePlus className="h-5 w-5" /><span className="text-[10px] font-medium">Add</span></>
+                      )}
+                      <input type="file" accept="image/*" multiple className="hidden" disabled={uploading}
+                        onChange={e => { handleAddImages(e.target.files); e.target.value = ''; }} />
+                    </label>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-1.5">Photos shown to customers. If none, your emoji + colour below are used.</p>
               </div>
 
               {/* Price & MRP */}
@@ -483,7 +568,7 @@ export const StoreProducts: React.FC = () => {
               {/* Icon & Color */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Product Icon (emoji)</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Fallback Icon (emoji)</label>
                   <input className="input text-2xl text-center" value={form.imageIcon} onChange={e => setForm(f => ({ ...f, imageIcon: e.target.value }))} placeholder="📦" maxLength={2} />
                 </div>
                 <div>

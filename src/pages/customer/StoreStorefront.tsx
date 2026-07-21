@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
+import { StoreLogo } from '../../components/ui/StoreLogo';
 import { formatCurrency } from '../../data/mockData';
 import type { Product } from '../../types';
 import {
@@ -11,6 +12,7 @@ import {
 import { QRCanvas, StoreShareModal } from '../../components/ui/StoreShareModal';
 import { BottomNav } from '../../components/layout/BottomNav';
 import clsx from 'clsx';
+import { ProductImage } from '../../components/ui/ProductImage';
 
 export const StoreStorefront: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -199,12 +201,12 @@ export const StoreStorefront: React.FC = () => {
 
         <div className="relative px-4 sm:px-8 py-10 sm:py-14">
           <div className="max-w-2xl flex items-start gap-5 flex-wrap">
-            <div
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl flex-shrink-0"
+            <StoreLogo
+              logo={store.logo}
+              name={store.name}
+              className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl text-4xl sm:text-5xl flex-shrink-0"
               style={{ background: 'rgba(255,255,255,0.2)' }}
-            >
-              {store.logo}
-            </div>
+            />
             <div className="flex-1">
               <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight mb-1">
                 {custom?.bannerHeadline || store.name}
@@ -374,10 +376,9 @@ export const StoreStorefront: React.FC = () => {
                     !isAvailable && 'opacity-70'
                   )}
                 >
-                  <div className={clsx('h-20 w-20 rounded-xl bg-gradient-to-br flex items-center justify-center text-3xl flex-shrink-0 relative', product.imageColor)}>
-                    {isPinned && <span className="absolute -top-1 -left-1 text-[10px] bg-amber-400 text-white px-1 rounded-full">★</span>}
-                    {product.imageIcon}
-                  </div>
+                  <ProductImage product={product} emojiClass="text-3xl" className="h-20 w-20 rounded-xl flex-shrink-0">
+                    {isPinned && <span className="absolute -top-1 -left-1 text-[10px] bg-amber-400 text-white px-1 rounded-full z-10">★</span>}
+                  </ProductImage>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-slate-400 truncate">{product.category}</p>
                     <h3 className="font-semibold text-slate-900 text-sm leading-tight truncate">{product.name}</h3>
@@ -424,7 +425,7 @@ export const StoreStorefront: React.FC = () => {
                     !isAvailable && 'opacity-70'
                   )}
                 >
-                  <div className={clsx('bg-gradient-to-br flex items-center justify-center relative', product.imageColor, isHero ? 'h-52 text-6xl' : 'h-32 text-4xl')}>
+                  <ProductImage product={product} emojiClass={isHero ? 'text-6xl' : 'text-4xl'} className={isHero ? 'h-52' : 'h-32'}>
                     {isPinned && <span className="absolute top-2 left-2 bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">⭐ Pinned</span>}
                     {disc > 0 && <span className="absolute top-2 right-2 bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">-{disc}%</span>}
                     {!isAvailable && (
@@ -432,8 +433,7 @@ export const StoreStorefront: React.FC = () => {
                         <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">Not in your city</span>
                       </div>
                     )}
-                    {product.imageIcon}
-                  </div>
+                  </ProductImage>
                   <div className="p-3">
                     <h3 className="font-semibold text-slate-900 text-sm leading-tight line-clamp-2 mb-1">{product.name}</h3>
                     <div className="flex items-center justify-between">
@@ -475,7 +475,7 @@ export const StoreStorefront: React.FC = () => {
                     !isAvailable && 'opacity-70'
                   )}
                 >
-                  <div className={clsx('h-36 sm:h-40 bg-gradient-to-br flex items-center justify-center text-4xl sm:text-5xl relative', product.imageColor)}>
+                  <ProductImage product={product} emojiClass="text-4xl sm:text-5xl" fit="contain" className="h-44 sm:h-52">
                     {isPinned && (
                       <span className="absolute top-2 left-2 bg-amber-400/90 backdrop-blur text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                         ⭐ Featured
@@ -491,8 +491,7 @@ export const StoreStorefront: React.FC = () => {
                         <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">Not in your city</span>
                       </div>
                     )}
-                    {product.imageIcon}
-                  </div>
+                  </ProductImage>
 
                   <div className="p-3">
                     <p className="text-[10px] text-slate-400 mb-0.5 truncate">{product.category}</p>

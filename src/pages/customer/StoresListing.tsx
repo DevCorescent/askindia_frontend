@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
+import { StoreLogo } from '../../components/ui/StoreLogo';
 import { Search, Store as StoreIcon, Package, Briefcase, MapPin, ExternalLink, Filter, X } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -183,9 +184,8 @@ export const StoresListing: React.FC = () => {
                     </div>
 
                     {/* Store logo */}
-                    <div className="absolute bottom-0 left-4 translate-y-1/2 w-14 h-14 rounded-2xl bg-white shadow-md flex items-center justify-center text-2xl border-2 border-white">
-                      {store.logo}
-                    </div>
+                    <StoreLogo logo={store.logo} name={store.name}
+                      className="absolute bottom-0 left-4 translate-y-1/2 w-14 h-14 rounded-2xl bg-white shadow-md text-2xl border-2 border-white" />
                   </div>
 
                   {/* Content */}

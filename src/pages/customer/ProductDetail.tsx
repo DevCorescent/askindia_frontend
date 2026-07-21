@@ -10,6 +10,7 @@ import {
   ChevronLeft, ChevronRight, Shield, RotateCcw, Package, Loader2,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { ProductImage } from '../../components/ui/ProductImage';
 
 const TABS = ['Description', 'Specifications', 'Reviews', 'Warranty & Returns'] as const;
 type Tab = typeof TABS[number];
@@ -184,24 +185,18 @@ export const ProductDetail: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="relative rounded-2xl overflow-hidden">
-                <div className={clsx(
-                  'h-80 sm:h-96 bg-gradient-to-br flex items-center justify-center text-9xl',
-                  product.imageColor
-                )}>
-                  {product.imageIcon}
-                  {product.featured && (
-                    <span className="absolute top-3 left-3 bg-white/90 backdrop-blur text-brand-700 text-xs font-bold px-2.5 py-1 rounded-full">
-                      ⭐ Featured
-                    </span>
-                  )}
-                  {disc > 0 && (
-                    <span className="absolute top-3 right-3 bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                      -{disc}%
-                    </span>
-                  )}
-                </div>
-              </div>
+              <ProductImage product={product} className="h-80 sm:h-96 rounded-2xl">
+                {product.featured && (
+                  <span className="absolute top-3 left-3 bg-white/90 backdrop-blur text-brand-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                    ⭐ Featured
+                  </span>
+                )}
+                {disc > 0 && (
+                  <span className="absolute top-3 right-3 bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                    -{disc}%
+                  </span>
+                )}
+              </ProductImage>
             )}
           </div>
 
@@ -511,14 +506,13 @@ export const ProductDetail: React.FC = () => {
                     to={`/shop/product/${p.id}`}
                     className="card overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 block"
                   >
-                    <div className={clsx('h-28 bg-gradient-to-br flex items-center justify-center text-4xl relative', p.imageColor)}>
+                    <ProductImage product={p} emojiClass="text-4xl" className="h-28">
                       {rDisc > 0 && (
                         <span className="absolute top-1.5 right-1.5 bg-emerald-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
                           -{rDisc}%
                         </span>
                       )}
-                      {p.imageIcon}
-                    </div>
+                    </ProductImage>
                     <div className="p-3">
                       <h3 className="font-semibold text-slate-800 text-xs leading-tight mb-1.5 line-clamp-2">{p.name}</h3>
                       <div className="flex items-baseline gap-1.5">

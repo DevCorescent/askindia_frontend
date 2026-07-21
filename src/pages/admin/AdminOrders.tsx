@@ -7,6 +7,7 @@ import { useAppStore } from '../../store/useAppStore';
 import type { Order, ServiceOrder } from '../../types';
 import { Search, Eye, ShoppingCart, Briefcase, Calendar, MapPin, CheckCircle, XCircle, ChevronRight, Clock, PlayCircle, CalendarCheck } from 'lucide-react';
 import clsx from 'clsx';
+import { ProductImage } from '../../components/ui/ProductImage';
 
 const STATUS_FLOW: Order['status'][] = ['pending', 'processing', 'shipped', 'delivered'];
 
@@ -41,7 +42,18 @@ const payMethodIcon: Record<string, string> = {
 };
 
 export const AdminOrders: React.FC = () => {
-  const { orders, serviceOrders, updateOrder, updateServiceOrder } = useAppStore();
+  const { orders, serviceOrders, updateOrder, updateServiceOrder, products } = useAppStore();
+  // Resolve an order line-item to its live product visual (real photo when available).
+  const itemVisual = (item: { productId?: string; productName: string; productIcon: string; productColor: string }) => {
+    const prod = products.find(p => p.id === item.productId);
+    return {
+      name:       item.productName,
+      thumbnail:  prod?.thumbnail,
+      images:     prod?.images,
+      imageColor: item.productColor,
+      imageIcon:  item.productIcon,
+    };
+  };
 
   const [tab, setTab] = useState<'products' | 'services'>('products');
 
@@ -377,9 +389,7 @@ export const AdminOrders: React.FC = () => {
                 {selectedOrder.items.map((item, i) => (
                   <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${item.productColor} flex items-center justify-center text-lg`}>
-                        {item.productIcon}
-                      </div>
+                      <ProductImage product={itemVisual(item)} emojiClass="text-lg" className="w-10 h-10 rounded-lg" />
                       <div>
                         <p className="text-sm font-medium text-slate-900">{item.productName}</p>
                         <p className="text-xs text-slate-500">Qty: {item.quantity} × {formatCurrency(item.price)}</p>
