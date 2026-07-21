@@ -6,8 +6,10 @@ import { formatCurrency, formatDate } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
 import type { Order } from '../../types';
 import { Search, Eye, Download, Check, Package, Truck, PackageCheck, X, Clock } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { InvoiceModal } from '../../components/InvoiceTemplate';
 import { ProductImage } from '../../components/ui/ProductImage';
+import { toast } from '../../components/ui/Toast';
 
 // Fulfilment lifecycle the store owner drives (mirrors the admin controls).
 const FLOW: Order['status'][] = ['pending', 'processing', 'shipped', 'delivered'];
@@ -19,7 +21,21 @@ const STEPS: { key: Order['status']; label: string; icon: React.ElementType }[] 
 ];
 
 export const StoreOrders: React.FC = () => {
-  const { currentUser, orders, stores, products } = useAppStore();
+  const { currentUser, orders, stores, products, updateOrder } = useAppStore();
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  // Store owner's only fulfilment action: accept a pending order → processing.
+  // Shipping & delivery are handled by the delivery partner.
+  const acceptOrder = async (order: Order) => {
+    setProcessingId(order.id);
+    try {
+      await updateOrder(order.id, { status: 'processing' });
+      if (selectedOrder?.id === order.id) setSelectedOrder({ ...order, status: 'processing' });
+      toast.success(`Order #${order.id.toUpperCase()} accepted — now processing`);
+    } finally {
+      setProcessingId(null);
+    }
+  };
   // Resolve an order line-item to its live product visual (real photo when available).
   const itemVisual = (item: { productId?: string; productName: string; productIcon: string; productColor: string }) => {
     const prod = products.find(p => p.id === item.productId);
@@ -123,6 +139,17 @@ export const StoreOrders: React.FC = () => {
                     <td className="table-td">{statusBadge(order.status)}</td>
                     <td className="table-td">
                       <div className="flex items-center gap-1">
+                        {order.status === 'pending' && (
+                          <button
+                            onClick={() => acceptOrder(order)}
+                            disabled={processingId === order.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition-colors whitespace-nowrap disabled:opacity-60"
+                            title="Accept & start processing"
+                          >
+                            {processingId === order.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Package className="h-3.5 w-3.5" />}
+                            <span className="hidden lg:inline">Accept &amp; Process</span>
+                          </button>
+                        )}
                         <button onClick={() => setSelectedOrder(order)} className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-colors" title="View details">
                           <Eye className="h-4 w-4" />
                         </button>
@@ -196,19 +223,30 @@ export const StoreOrders: React.FC = () => {
                   })}
                 </div>
 
-                {/* Read-only status note */}
-                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-200">
-                  {selectedOrder.status === 'delivered' ? (
+                {/* Status note + the store owner's single action (accept) */}
+                <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-200">
+                  {selectedOrder.status === 'pending' ? (
+                    <button
+                      onClick={() => acceptOrder(selectedOrder)}
+                      disabled={processingId === selectedOrder.id}
+                      className="btn-primary gap-2 text-sm disabled:opacity-60"
+                    >
+                      {processingId === selectedOrder.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
+                      Accept &amp; Process
+                    </button>
+                  ) : selectedOrder.status === 'delivered' ? (
                     <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
                       <PackageCheck className="h-4 w-4" /> Order delivered
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
-                      <Clock className="h-4 w-4 text-brand-500" />
-                      Currently <span className="font-semibold text-slate-700 capitalize">{selectedOrder.status}</span>
+                      <Truck className="h-4 w-4 text-brand-500" />
+                      With delivery partner — <span className="font-semibold text-slate-700 capitalize">{selectedOrder.status}</span>
                     </span>
                   )}
-                  <span className="text-xs text-slate-400 ml-auto">Fulfilment is updated by AskIndia</span>
+                  <span className="text-xs text-slate-400 ml-auto inline-flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> Shipping &amp; delivery handled by delivery partner
+                  </span>
                 </div>
               </div>
             )}

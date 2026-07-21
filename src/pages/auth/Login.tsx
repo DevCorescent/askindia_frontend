@@ -17,6 +17,7 @@ const navigateByRole = (role: string, navigate: ReturnType<typeof useNavigate>) 
   else if (role === 'store_owner')  navigate('/store');
   else if (role === 'service_provider') navigate('/service-provider');
   else if (role === 'agent')        navigate('/agent');
+  else if (role === 'delivery_partner') navigate('/delivery');
   else                              navigate('/shop');
 };
 

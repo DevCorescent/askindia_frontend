@@ -126,6 +126,11 @@ export const dataLoaders = {
     return [];
   },
 
+  /** Admin: every real user profile from the backend. */
+  async loadAllUsers(): Promise<User[]> {
+    return api.get<User[]>('/admin/users');
+  },
+
   async loadProviderInvoiceSettings(storeId: string): Promise<InvoiceSettings | null> {
     try {
       const store = await api.get<Store>(`/stores/${storeId}`);
@@ -151,6 +156,20 @@ export const mutations = {
 
   async updateProduct(id: string, patch: Partial<Product>): Promise<void> {
     await api.patch(`/products/${id}`, patch);
+  },
+
+  // ── Admin: users ─────────────────────────────────────────────────────────
+  async adminUpdateUser(id: string, patch: { name?: string; role?: string; city?: string; state?: string; is_active?: boolean }): Promise<void> {
+    await api.patch(`/admin/users/${id}`, patch);
+  },
+
+  async adminDeleteUser(id: string): Promise<void> {
+    await api.del(`/admin/users/${id}`);
+  },
+
+  /** Update the signed-in user's own profile; returns the fresh profile. */
+  async updateMyProfile(patch: { name?: string; phone?: string; city?: string; state?: string; avatar?: string }): Promise<User> {
+    return api.patch<User>('/auth/me', patch);
   },
 
   async deleteProduct(id: string): Promise<void> {

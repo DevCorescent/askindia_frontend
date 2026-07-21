@@ -5,6 +5,7 @@ import { useSupabaseInit } from './hooks/useSupabaseInit';
 import { useRealtimeOrders } from './hooks/useRealtimeOrders';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PageLoader } from './components/PageLoader';
+import { ToastHost } from './components/ui/Toast';
 
 // ── Lazy-loaded route chunks ──────────────────────────────────────────────────
 // Each group maps to a manualChunk in vite.config.ts for optimal caching.
@@ -37,6 +38,9 @@ const StoreProducts   = lazy(() => import('./pages/store-owner/StoreProducts').t
 const StoreOrders     = lazy(() => import('./pages/store-owner/StoreOrders').then(m => ({ default: m.StoreOrders })));
 const StoreWallet     = lazy(() => import('./pages/store-owner/StoreWallet').then(m => ({ default: m.StoreWallet })));
 const StoreCustomize  = lazy(() => import('./pages/store-owner/StoreCustomize').then(m => ({ default: m.StoreCustomize })));
+const DeliveryDashboard = lazy(() => import('./pages/delivery/DeliveryDashboard').then(m => ({ default: m.DeliveryDashboard })));
+const DeliveryOrders    = lazy(() => import('./pages/delivery/DeliveryOrders').then(m => ({ default: m.DeliveryOrders })));
+const DeliveryProfile   = lazy(() => import('./pages/delivery/DeliveryProfile').then(m => ({ default: m.DeliveryProfile })));
 
 // Service provider
 const ServiceProviderDashboard = lazy(() => import('./pages/service-provider/ServiceProviderDashboard').then(m => ({ default: m.ServiceProviderDashboard })));
@@ -65,7 +69,7 @@ const AgentOrders    = lazy(() => import('./pages/agent/AgentOrders').then(m => 
 const AgentWallet    = lazy(() => import('./pages/agent/AgentWallet').then(m => ({ default: m.AgentWallet })));
 
 // ── Route guards ──────────────────────────────────────────────────────────────
-type Role = 'admin' | 'store_owner' | 'service_provider' | 'customer' | 'agent';
+type Role = 'admin' | 'store_owner' | 'service_provider' | 'customer' | 'agent' | 'delivery_partner';
 
 const ProtectedRoute: React.FC<{ role: Role; children: React.ReactNode }> = ({ role, children }) => {
   const { currentUser } = useAppStore();
@@ -75,6 +79,7 @@ const ProtectedRoute: React.FC<{ role: Role; children: React.ReactNode }> = ({ r
     if (currentUser.role === 'store_owner')       return <Navigate to="/store"            replace />;
     if (currentUser.role === 'service_provider')  return <Navigate to="/service-provider" replace />;
     if (currentUser.role === 'agent')             return <Navigate to="/agent"            replace />;
+    if (currentUser.role === 'delivery_partner')  return <Navigate to="/delivery"         replace />;
     return <Navigate to="/shop" replace />;
   }
   return <>{children}</>;
@@ -130,6 +135,11 @@ export default function App() {
             <Route path="/store/wallet"    element={<ProtectedRoute role="store_owner"><StoreWallet /></ProtectedRoute>} />
             <Route path="/store/customize" element={<ProtectedRoute role="store_owner"><StoreCustomize /></ProtectedRoute>} />
 
+            {/* ── Delivery Partner ──────────────────────────────────────────── */}
+            <Route path="/delivery"        element={<ProtectedRoute role="delivery_partner"><DeliveryDashboard /></ProtectedRoute>} />
+            <Route path="/delivery/orders" element={<ProtectedRoute role="delivery_partner"><DeliveryOrders /></ProtectedRoute>} />
+            <Route path="/delivery/profile" element={<ProtectedRoute role="delivery_partner"><DeliveryProfile /></ProtectedRoute>} />
+
             {/* ── Service Provider ───────────────────────────────────────────── */}
             <Route path="/service-provider"          element={<ProtectedRoute role="service_provider"><ServiceProviderDashboard /></ProtectedRoute>} />
             <Route path="/service-provider/services" element={<ProtectedRoute role="service_provider"><ServiceProviderServices /></ProtectedRoute>} />
@@ -160,6 +170,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
+        <ToastHost />
       </BrowserRouter>
     </ErrorBoundary>
   );

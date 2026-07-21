@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Store, ShoppingCart, Wallet,
-  Home, Briefcase, ShoppingBag, ClipboardList, User, CreditCard, Palette,
+  Home, Briefcase, ShoppingBag, ClipboardList, User, CreditCard, Palette, Truck,
 } from 'lucide-react';
 
 import { useAppStore } from '../../store/useAppStore';
@@ -47,6 +47,11 @@ const agentNav = [
   { to: '/agent/wallet', icon: Wallet, label: 'Wallet', end: false },
 ];
 
+const deliveryNav = [
+  { to: '/delivery', icon: LayoutDashboard, label: 'Dashboard', end: true },
+  { to: '/delivery/orders', icon: Truck, label: 'Queue', end: false },
+];
+
 export const BottomNav: React.FC = () => {
   const { currentUser, cart } = useAppStore();
   if (!currentUser) return null;
@@ -58,6 +63,7 @@ export const BottomNav: React.FC = () => {
     currentUser.role === 'store_owner' ? storeNav :
     currentUser.role === 'service_provider' ? providerNav :
     currentUser.role === 'agent' ? agentNav :
+    currentUser.role === 'delivery_partner' ? deliveryNav :
     customerNav;
 
   return (
