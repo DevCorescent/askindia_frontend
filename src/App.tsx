@@ -1,5 +1,5 @@
-import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAppStore } from './store/useAppStore';
 import { useSupabaseInit } from './hooks/useSupabaseInit';
 import { useRealtimeOrders } from './hooks/useRealtimeOrders';
@@ -85,6 +85,16 @@ const ProtectedRoute: React.FC<{ role: Role; children: React.ReactNode }> = ({ r
   return <>{children}</>;
 };
 
+// Fires a `page_view` activity on every route change (for signed-in users).
+const RouteTracker: React.FC = () => {
+  const location = useLocation();
+  const trackActivity = useAppStore(s => s.trackActivity);
+  useEffect(() => {
+    trackActivity('page_view', {}, location.pathname);
+  }, [location.pathname, trackActivity]);
+  return null;
+};
+
 const AnyAuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAppStore();
   if (!currentUser) return <Navigate to="/login" replace />;
@@ -102,6 +112,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <RouteTracker />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* ── Public ────────────────────────────────────────────────────── */}

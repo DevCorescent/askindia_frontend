@@ -15,7 +15,7 @@ const THEMES = [
 ];
 
 export const StoreProfile: React.FC = () => {
-  const { currentUser, stores, updateStore, loadingData, supabaseReady } = useAppStore();
+  const { currentUser, stores, updateStore, loadingData, supabaseReady, trackActivity } = useAppStore();
   const myStore = stores.find(s => s.id === currentUser?.storeId);
 
   const [selectedTheme, setSelectedTheme] = useState(myStore?.themeColor ?? '#4f46e5');
@@ -132,6 +132,7 @@ export const StoreProfile: React.FC = () => {
       bankIfsc:        inv.bankIfsc     ?? myStore.bankIfsc,
       invoiceSettings: inv,
     });
+    trackActivity('profile_update', { storeId: myStore.id, storeName: storeName });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };

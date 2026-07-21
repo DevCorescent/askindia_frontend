@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
@@ -14,9 +14,14 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 export const ServiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { services, currentUser, addServiceOrder } = useAppStore();
+  const { services, currentUser, addServiceOrder, trackActivity } = useAppStore();
 
   const service = services.find(s => s.id === id);
+
+  useEffect(() => {
+    if (service) trackActivity('service_view', { serviceId: service.id, serviceName: service.title }, `/services/${service.id}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [service?.id]);
 
   const [showModal, setShowModal] = useState(false);
   const [bookingDate, setBookingDate] = useState('');

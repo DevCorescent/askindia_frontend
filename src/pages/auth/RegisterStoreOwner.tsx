@@ -299,6 +299,7 @@ export const RegisterStoreOwner: React.FC = () => {
         const signInResult = await authService.signIn(data.email, data.password);
         if (signInResult.success && signInResult.user) {
           setCurrentUser(signInResult.user);
+          useAppStore.getState().trackActivity('register', { role: 'store_owner' });
           await loadFromSupabase(signInResult.user.id, 'store_owner', signInResult.user.storeId ?? null);
         }
       }

@@ -6,7 +6,7 @@ import { toast } from '../../components/ui/Toast';
 import { UserCircle, Loader2, Mail } from 'lucide-react';
 
 export const DeliveryProfile: React.FC = () => {
-  const { currentUser, setCurrentUser } = useAppStore();
+  const { currentUser, setCurrentUser, trackActivity } = useAppStore();
 
   const [name, setName]   = useState(currentUser?.name ?? '');
   const [phone, setPhone] = useState(currentUser?.phone ?? '');
@@ -32,6 +32,7 @@ export const DeliveryProfile: React.FC = () => {
         state: state.trim(),
       });
       setCurrentUser({ ...currentUser!, ...updated });
+      trackActivity('profile_update', { name: updated.name });
       toast.success('Profile updated');
     } catch (e) {
       setError((e as Error).message || 'Could not save. Please retry.');

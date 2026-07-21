@@ -239,6 +239,7 @@ export const RegisterServiceProvider: React.FC = () => {
         const signInResult = await authService.signIn(data.email.trim(), data.password);
         if (signInResult.success && signInResult.user) {
           setCurrentUser(signInResult.user);
+          useAppStore.getState().trackActivity('register', { role: 'service_provider' });
           await loadFromSupabase(signInResult.user.id, 'service_provider', null);
         }
       }

@@ -27,7 +27,7 @@ const PRICE_PRESETS = [
 ];
 
 export const CustomerStorefront: React.FC = () => {
-  const { products, currentUser, addToCart } = useAppStore();
+  const { products, currentUser, addToCart, trackActivity } = useAppStore();
   const [searchParams] = useSearchParams();
   const isCustomer = currentUser?.role === 'customer';
 
@@ -39,6 +39,15 @@ export const CustomerStorefront: React.FC = () => {
     const cat = searchParams.get('cat');
     if (cat) setSelectedCats([cat]);
   }, [searchParams]);
+
+  // Log searches (debounced so we don't fire on every keystroke).
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) return;
+    const t = setTimeout(() => trackActivity('search', { query: q }, '/shop'), 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('featured');
@@ -74,8 +83,10 @@ export const CustomerStorefront: React.FC = () => {
       });
   }, [activeProducts, search, selectedCats, priceMin, priceMax, sortBy, availFilter, featuredOnly]);
 
-  const toggleCat = (id: string) =>
+  const toggleCat = (id: string) => {
     setSelectedCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+    trackActivity('filter_apply', { type: 'category', value: id }, '/shop');
+  };
 
   const clearAll = () => {
     setSearch('');

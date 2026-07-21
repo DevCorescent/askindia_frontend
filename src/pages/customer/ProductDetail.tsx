@@ -41,9 +41,15 @@ const Stars: React.FC<{ value: number; className?: string }> = ({ value, classNa
 export const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { products, currentUser, addToCart } = useAppStore();
+  const { products, currentUser, addToCart, trackActivity } = useAppStore();
 
   const product = products.find(p => p.id === id);
+
+  // Log a product view once per product opened.
+  useEffect(() => {
+    if (product) trackActivity('product_view', { productId: product.id, productName: product.name }, `/shop/product/${product.id}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   const [selectedImg, setSelectedImg] = useState(0);
   const [qty, setQty] = useState(1);

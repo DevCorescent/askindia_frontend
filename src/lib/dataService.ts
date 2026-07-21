@@ -115,11 +115,13 @@ export const dataLoaders = {
   },
 
   async loadUserActivities(): Promise<UserActivity[]> {
-    return [];
+    try { return await api.get<UserActivity[]>('/analytics/activities'); }
+    catch { return []; }
   },
 
   async loadAbandonedCarts(): Promise<AbandonedCart[]> {
-    return [];
+    try { return await api.get<AbandonedCart[]>('/analytics/abandoned-carts'); }
+    catch { return []; }
   },
 
   async loadCustomRoles(): Promise<Role[]> {
@@ -297,8 +299,8 @@ export const mutations = {
 
   // ── User Activities ──────────────────────────────────────────────────────────
 
-  async trackActivity(_data: Omit<UserActivity, 'id' | 'createdAt'>): Promise<void> {
-    // Activity tracking not yet implemented in backend
+  async trackActivity(data: Omit<UserActivity, 'id' | 'createdAt'>): Promise<void> {
+    await api.post('/analytics/track', data);
   },
 
   // ── Wallet ensure ─────────────────────────────────────────────────────────────

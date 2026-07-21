@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import { StoreLogo } from '../../components/ui/StoreLogo';
@@ -17,7 +17,7 @@ import { ProductImage } from '../../components/ui/ProductImage';
 export const StoreStorefront: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { stores, products, cart, addToCart, currentUser } = useAppStore();
+  const { stores, products, cart, addToCart, currentUser, trackActivity } = useAppStore();
 
   const [addedId, setAddedId] = useState<string | null>(null);
   const [layoutOverride, setLayoutOverride] = useState<'grid' | 'list' | null>(null);
@@ -43,6 +43,11 @@ export const StoreStorefront: React.FC = () => {
     const rest = allActiveProducts.filter(p => !pinnedIds.includes(p.id));
     return [...pinned, ...rest];
   }, [allActiveProducts, pinnedIds, store]);
+
+  useEffect(() => {
+    if (store) trackActivity('store_view', { storeId: store.id, storeName: store.name }, `/shop/store/${store.slug}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store?.id]);
 
   const handleAddToCart = (product: Product) => {
     addToCart(product, 1);
