@@ -5,11 +5,17 @@
 @layer base {
   * { box-sizing: border-box; }
   body {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Poppins', system-ui, sans-serif;
     background-color: #f8fafc;
     color: #0f172a;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  /* All headings use a neutral sans-serif (Inter) at a professional 750 weight;
+     body and everything else stays in Poppins. */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 750 !important;
   }
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -77,4 +83,74 @@
     scrollbar-width: none;
   }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
+}
+
+/* ── Motion ─────────────────────────────────────────────────────────────── */
+@keyframes ai-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+.ai-float { animation: ai-float 4.5s ease-in-out infinite; }
+
+@keyframes ai-reveal {
+  from { opacity: 0; transform: translateY(26px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Scroll-driven reveal — native in Chromium/Brave/Edge; a graceful no-op elsewhere. */
+@supports (animation-timeline: view()) {
+  .reveal-on-scroll {
+    animation: ai-reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 22%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-float { animation: none; }
+  .reveal-on-scroll { animation: none; }
+  .skeleton { animation: none; }
+}
+
+/* ── Surfaces & accents ─────────────────────────────────────────────────── */
+/* Soft, premium elevation — replaces hard 1px borders on cards */
+.shadow-soft   { box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 12px 32px -16px rgba(15,23,42,0.16); }
+.shadow-soft:hover { box-shadow: 0 2px 4px rgba(15,23,42,0.05), 0 18px 40px -18px rgba(15,23,42,0.22); }
+
+/* Small uppercase kicker label above section titles */
+.eyebrow {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Staggered fade-up for hero entrance (use with inline animation-delay) */
+@keyframes ai-fade-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: ai-fade-up 0.7s cubic-bezier(.2,.7,.2,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .fade-up { animation: none; }
+}
+
+/* Subtle dot texture for hero / colored panels */
+.dot-texture {
+  background-image: radial-gradient(rgba(255,255,255,0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Skeleton shimmer for loading grids */
+@keyframes ai-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.skeleton {
+  background: linear-gradient(90deg, #eef2f7 25%, #e2e8f0 37%, #eef2f7 63%);
+  background-size: 200% 100%;
+  animation: ai-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
 }

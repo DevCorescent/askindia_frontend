@@ -8,6 +8,13 @@ interface LogoProps {
   /** tailwind text-size class for the wordmark */
   textClass?: string;
   className?: string;
+  /**
+   * 'default' — navy tile (for light backgrounds).
+   * 'light'   — white tile with navy letterform + white wordmark (for dark backgrounds).
+   *             Use this instead of the `brightness-0 invert` hack, which turns the
+   *             whole mark white and makes the icon disappear.
+   */
+  tone?: 'default' | 'light';
 }
 
 /**
@@ -21,7 +28,12 @@ export const AskIndiaLogo: React.FC<LogoProps> = ({
   showText = true,
   textClass = 'text-xl',
   className = '',
+  tone = 'default',
 }) => {
+  const light = tone === 'light';
+  const tile = light ? '#ffffff' : '#0D1F6E';   // tile background
+  const letter = light ? '#0D1F6E' : '#ffffff'; // "A" letterform
+  const askColor = light ? '#ffffff' : '#0D1F6E';
   return (
     <div className={`flex items-center gap-2.5 select-none ${className}`}>
       {/* ── Icon ── */}
@@ -33,20 +45,20 @@ export const AskIndiaLogo: React.FC<LogoProps> = ({
         xmlns="http://www.w3.org/2000/svg"
         aria-label="AskIndia icon"
       >
-        {/* Background */}
-        <rect width="40" height="40" rx="9" fill="#0D1F6E" />
+        {/* Background tile */}
+        <rect width="40" height="40" rx="9" fill={tile} />
 
-        {/* White "A" letterform */}
+        {/* "A" letterform */}
         <path
           d="M6 30 L13 10 L20 24 L27 10 L34 30"
-          stroke="white"
+          stroke={letter}
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
           fill="none"
         />
         {/* A crossbar */}
-        <line x1="9" y1="23" x2="31" y2="23" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
+        <line x1="9" y1="23" x2="31" y2="23" stroke={letter} strokeWidth="2.8" strokeLinecap="round" />
 
         {/* Orange "i" dot */}
         <circle cx="36.5" cy="10" r="2.8" fill="#F97316" />
@@ -68,7 +80,7 @@ export const AskIndiaLogo: React.FC<LogoProps> = ({
       {/* ── Wordmark ── */}
       {showText && (
         <span className={`font-extrabold leading-none tracking-tight ${textClass}`}>
-          <span style={{ color: '#0D1F6E' }}>Ask</span>
+          <span style={{ color: askColor }}>Ask</span>
           <span style={{ color: '#F97316' }}>India</span>
         </span>
       )}

@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
+import { ProductImage } from '../../components/ui/ProductImage';
 import { formatCurrency } from '../../data/mockData';
 import { useNavigate } from 'react-router-dom';
 import {
   Palette, Layout, Star, Globe, Megaphone, QrCode,
-  Save, Eye, ChevronDown, ChevronUp, Share2, Check,
+  Save, Eye, ChevronDown, ChevronUp, Share2, Check, ImagePlus, Loader2,
 } from 'lucide-react';
+import { StoreLogo, isImageLogo } from '../../components/ui/StoreLogo';
+import { uploadImage } from '../../utils/imageUpload';
 import { QRCanvas, StoreShareModal } from '../../components/ui/StoreShareModal';
 import clsx from 'clsx';
 
@@ -52,6 +55,7 @@ export const StoreCustomize: React.FC = () => {
 
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
+  const [logoUploading, setLogoUploading] = useState(false);
 
   // ── Form state ──
   const [themeColor, setThemeColor] = useState(store?.themeColor ?? '#4f46e5');
@@ -190,23 +194,41 @@ export const StoreCustomize: React.FC = () => {
           <div className="space-y-4 mt-3">
             {/* Logo */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Store Logo (emoji)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Store Logo</label>
               <div className="flex items-center gap-3">
-                <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0"
-                  style={{ background: themeColor + '22', border: `2px solid ${themeColor}44` }}
-                >
-                  {logo}
-                </div>
-                <input
-                  className="input flex-1"
-                  value={logo}
-                  onChange={e => setLogo(e.target.value)}
-                  placeholder="🏪"
-                  maxLength={4}
+                <StoreLogo
+                  logo={logo}
+                  name={store?.name}
+                  className="w-14 h-14 rounded-2xl text-3xl flex-shrink-0"
+                  style={isImageLogo(logo) ? undefined : { background: themeColor + '22', border: `2px solid ${themeColor}44` }}
                 />
+                <div className="flex-1 space-y-2">
+                  <label className={clsx(
+                    'flex items-center justify-center gap-2 px-3 py-2 rounded-xl border-2 border-dashed cursor-pointer text-sm font-medium transition-colors',
+                    logoUploading ? 'border-slate-200 text-slate-300' : 'border-slate-300 text-slate-600 hover:border-brand-400 hover:text-brand-500',
+                  )}>
+                    {logoUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                    {logoUploading ? 'Uploading…' : 'Upload logo image'}
+                    <input type="file" accept="image/*" className="hidden" disabled={logoUploading}
+                      onChange={async e => {
+                        const file = e.target.files?.[0]; e.target.value = '';
+                        if (!file) return;
+                        setLogoUploading(true);
+                        try { setLogo(await uploadImage(file)); } catch { /* keep current */ } finally { setLogoUploading(false); }
+                      }} />
+                  </label>
+                  <input
+                    className="input"
+                    value={isImageLogo(logo) ? '' : logo}
+                    onChange={e => setLogo(e.target.value)}
+                    placeholder="…or paste an emoji 🏪"
+                    maxLength={4}
+                  />
+                </div>
               </div>
-              <p className="text-xs text-slate-400 mt-1">Paste any emoji — this is your store's main icon.</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Upload a real logo image, or use an emoji.{isImageLogo(logo) && ' Clear the image by pasting an emoji.'}
+              </p>
             </div>
 
             {/* Theme Color */}
@@ -332,9 +354,7 @@ export const StoreCustomize: React.FC = () => {
                   </div>
                 )}
                 <div className="p-4 flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl flex-shrink-0">
-                    {logo}
-                  </div>
+                  <StoreLogo logo={logo} name={store.name} className="w-12 h-12 rounded-xl bg-white/20 text-2xl flex-shrink-0" />
                   <div>
                     <p className="text-white font-bold text-sm">{bannerHeadline || store.name}</p>
                     <p className="text-white/75 text-xs mt-0.5">{bannerSubtext || tagline}</p>
@@ -410,11 +430,7 @@ export const StoreCustomize: React.FC = () => {
                       onChange={() => toggleFeatured(p.id)}
                       className="rounded border-slate-300 text-amber-500 w-4 h-4 flex-shrink-0"
                     />
-                    <div
-                      className={`w-8 h-8 rounded-lg bg-gradient-to-br ${p.imageColor} flex items-center justify-center text-base flex-shrink-0`}
-                    >
-                      {p.imageIcon}
-                    </div>
+                    <ProductImage product={p} className="w-8 h-8 rounded-lg flex-shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-slate-800 truncate">{p.name}</p>
                       <p className="text-xs text-slate-500">{formatCurrency(p.price)}</p>

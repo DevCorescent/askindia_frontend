@@ -1,10 +1,11 @@
-import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAppStore } from './store/useAppStore';
 import { useSupabaseInit } from './hooks/useSupabaseInit';
 import { useRealtimeOrders } from './hooks/useRealtimeOrders';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PageLoader } from './components/PageLoader';
+import { ToastHost } from './components/ui/Toast';
 
 // ── Lazy-loaded route chunks ──────────────────────────────────────────────────
 // Each group maps to a manualChunk in vite.config.ts for optimal caching.
@@ -14,7 +15,6 @@ const Landing               = lazy(() => import('./pages/Landing').then(m => ({ 
 const Login                 = lazy(() => import('./pages/auth/Login').then(m => ({ default: m.Login })));
 const RegisterStoreOwner    = lazy(() => import('./pages/auth/RegisterStoreOwner').then(m => ({ default: m.RegisterStoreOwner })));
 const RegisterServiceProvider = lazy(() => import('./pages/auth/RegisterServiceProvider').then(m => ({ default: m.RegisterServiceProvider })));
-const RegisterCustomer      = lazy(() => import('./pages/auth/RegisterCustomer').then(m => ({ default: m.RegisterCustomer })));
 
 // Admin
 const AdminDashboard  = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -38,6 +38,9 @@ const StoreProducts   = lazy(() => import('./pages/store-owner/StoreProducts').t
 const StoreOrders     = lazy(() => import('./pages/store-owner/StoreOrders').then(m => ({ default: m.StoreOrders })));
 const StoreWallet     = lazy(() => import('./pages/store-owner/StoreWallet').then(m => ({ default: m.StoreWallet })));
 const StoreCustomize  = lazy(() => import('./pages/store-owner/StoreCustomize').then(m => ({ default: m.StoreCustomize })));
+const DeliveryDashboard = lazy(() => import('./pages/delivery/DeliveryDashboard').then(m => ({ default: m.DeliveryDashboard })));
+const DeliveryOrders    = lazy(() => import('./pages/delivery/DeliveryOrders').then(m => ({ default: m.DeliveryOrders })));
+const DeliveryProfile   = lazy(() => import('./pages/delivery/DeliveryProfile').then(m => ({ default: m.DeliveryProfile })));
 
 // Service provider
 const ServiceProviderDashboard = lazy(() => import('./pages/service-provider/ServiceProviderDashboard').then(m => ({ default: m.ServiceProviderDashboard })));
@@ -66,7 +69,7 @@ const AgentOrders    = lazy(() => import('./pages/agent/AgentOrders').then(m => 
 const AgentWallet    = lazy(() => import('./pages/agent/AgentWallet').then(m => ({ default: m.AgentWallet })));
 
 // ── Route guards ──────────────────────────────────────────────────────────────
-type Role = 'admin' | 'store_owner' | 'service_provider' | 'customer' | 'agent';
+type Role = 'admin' | 'store_owner' | 'service_provider' | 'customer' | 'agent' | 'delivery_partner';
 
 const ProtectedRoute: React.FC<{ role: Role; children: React.ReactNode }> = ({ role, children }) => {
   const { currentUser } = useAppStore();
@@ -76,9 +79,20 @@ const ProtectedRoute: React.FC<{ role: Role; children: React.ReactNode }> = ({ r
     if (currentUser.role === 'store_owner')       return <Navigate to="/store"            replace />;
     if (currentUser.role === 'service_provider')  return <Navigate to="/service-provider" replace />;
     if (currentUser.role === 'agent')             return <Navigate to="/agent"            replace />;
+    if (currentUser.role === 'delivery_partner')  return <Navigate to="/delivery"         replace />;
     return <Navigate to="/shop" replace />;
   }
   return <>{children}</>;
+};
+
+// Fires a `page_view` activity on every route change (for signed-in users).
+const RouteTracker: React.FC = () => {
+  const location = useLocation();
+  const trackActivity = useAppStore(s => s.trackActivity);
+  useEffect(() => {
+    trackActivity('page_view', {}, location.pathname);
+  }, [location.pathname, trackActivity]);
+  return null;
 };
 
 const AnyAuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -98,6 +112,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <RouteTracker />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* ── Public ────────────────────────────────────────────────────── */}
@@ -105,7 +120,8 @@ export default function App() {
             <Route path="/login"                   element={<Login />} />
             <Route path="/register/store-owner"    element={<RegisterStoreOwner />} />
             <Route path="/register/service-provider" element={<RegisterServiceProvider />} />
-            <Route path="/register/customer"       element={<RegisterCustomer />} />
+            {/* Customer self-signup removed — shoppers just browse & sign in */}
+            <Route path="/register/customer"       element={<Navigate to="/login" replace />} />
 
             {/* ── Admin ─────────────────────────────────────────────────────── */}
             <Route path="/admin"           element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />
@@ -129,6 +145,11 @@ export default function App() {
             <Route path="/store/orders"    element={<ProtectedRoute role="store_owner"><StoreOrders /></ProtectedRoute>} />
             <Route path="/store/wallet"    element={<ProtectedRoute role="store_owner"><StoreWallet /></ProtectedRoute>} />
             <Route path="/store/customize" element={<ProtectedRoute role="store_owner"><StoreCustomize /></ProtectedRoute>} />
+
+            {/* ── Delivery Partner ──────────────────────────────────────────── */}
+            <Route path="/delivery"        element={<ProtectedRoute role="delivery_partner"><DeliveryDashboard /></ProtectedRoute>} />
+            <Route path="/delivery/orders" element={<ProtectedRoute role="delivery_partner"><DeliveryOrders /></ProtectedRoute>} />
+            <Route path="/delivery/profile" element={<ProtectedRoute role="delivery_partner"><DeliveryProfile /></ProtectedRoute>} />
 
             {/* ── Service Provider ───────────────────────────────────────────── */}
             <Route path="/service-provider"          element={<ProtectedRoute role="service_provider"><ServiceProviderDashboard /></ProtectedRoute>} />
@@ -160,6 +181,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
+        <ToastHost />
       </BrowserRouter>
     </ErrorBoundary>
   );

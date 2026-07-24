@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
+import { StoreLogo } from '../../components/ui/StoreLogo';
 import { CheckCircle, Globe, Palette, Store, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import type { InvoiceSettings } from '../../types';
 
@@ -14,13 +15,17 @@ const THEMES = [
 ];
 
 export const StoreProfile: React.FC = () => {
-  const { currentUser, stores, updateStore, loadingData, supabaseReady } = useAppStore();
+  const { currentUser, stores, updateStore, loadingData, supabaseReady, trackActivity } = useAppStore();
   const myStore = stores.find(s => s.id === currentUser?.storeId);
 
   const [selectedTheme, setSelectedTheme] = useState(myStore?.themeColor ?? '#4f46e5');
   const [storeName, setStoreName] = useState(myStore?.name ?? '');
   const [tagline, setTagline] = useState(myStore?.tagline ?? '');
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(myStore?.description ?? '');
+  const [whatsapp, setWhatsapp] = useState(myStore?.customization?.socialWhatsapp ?? '');
+  const [instagram, setInstagram] = useState(myStore?.customization?.socialInstagram ?? '');
+  const [facebook, setFacebook] = useState(myStore?.customization?.socialFacebook ?? '');
+  const [supportEmail, setSupportEmail] = useState(myStore?.contactEmail ?? '');
   const [saved, setSaved] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
 
@@ -53,6 +58,11 @@ export const StoreProfile: React.FC = () => {
     setSelectedTheme(myStore.themeColor ?? '#4f46e5');
     setStoreName(myStore.name ?? '');
     setTagline(myStore.tagline ?? '');
+    setDescription(myStore.description ?? '');
+    setWhatsapp(myStore.customization?.socialWhatsapp ?? '');
+    setInstagram(myStore.customization?.socialInstagram ?? '');
+    setFacebook(myStore.customization?.socialFacebook ?? '');
+    setSupportEmail(myStore.contactEmail ?? '');
     const ex = myStore.invoiceSettings ?? {};
     setInv({
       businessName: ex.businessName ?? '',
@@ -109,133 +119,193 @@ export const StoreProfile: React.FC = () => {
       tagline,
       description,
       themeColor:      selectedTheme,
+      contactEmail:    supportEmail,
+      customization: {
+        ...(myStore.customization ?? {}),
+        socialWhatsapp:  whatsapp,
+        socialInstagram: instagram,
+        socialFacebook:  facebook,
+      },
       // Sync commonly-used fields from invoice settings to the store record
       gstNumber:       inv.gstin        ?? myStore.gstNumber,
       bankAccount:     inv.bankAccount  ?? myStore.bankAccount,
       bankIfsc:        inv.bankIfsc     ?? myStore.bankIfsc,
       invoiceSettings: inv,
     });
+    trackActivity('profile_update', { storeId: myStore.id, storeName: storeName });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
 
+  const resetForm = () => {
+    setStoreName(myStore.name ?? '');
+    setTagline(myStore.tagline ?? '');
+    setDescription(myStore.description ?? '');
+    setSelectedTheme(myStore.themeColor ?? '#4f46e5');
+    setWhatsapp(myStore.customization?.socialWhatsapp ?? '');
+    setInstagram(myStore.customization?.socialInstagram ?? '');
+    setFacebook(myStore.customization?.socialFacebook ?? '');
+    setSupportEmail(myStore.contactEmail ?? '');
+  };
+
   return (
     <AppLayout title="My Store">
-      <div className="space-y-5 max-w-4xl">
-        {/* Preview */}
-        <div className="card overflow-hidden">
-          <div className="h-24 relative" style={{ background: `linear-gradient(135deg, ${selectedTheme}, ${selectedTheme}aa)` }}>
-            <div className="absolute inset-0 opacity-10" style={{
-              backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 20px)`
-            }} />
-          </div>
-          <div className="px-6 pb-5">
-            <div className="flex items-end gap-4 -mt-8 mb-4">
-              <div className="w-16 h-16 rounded-2xl border-4 border-white shadow-lg flex items-center justify-center text-3xl"
-                style={{ background: selectedTheme + '20' }}>
-                {myStore.logo}
-              </div>
-              <div className="pb-1">
-                <h2 className="text-xl font-bold text-slate-900">{storeName}</h2>
-                <p className="text-slate-500 text-sm">{tagline}</p>
-              </div>
-            </div>
-            <p className="text-xs text-slate-400 font-mono bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-fit">
-              🌐 {myStore.slug}.askindia.shop
-            </p>
-          </div>
-        </div>
+      <div className="w-full space-y-5 pb-24">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
 
-        <div className="grid md:grid-cols-2 gap-5">
-          {/* Store Info */}
-          <div className="card p-5 space-y-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Store className="h-4 w-4 text-brand-600" />
-              <h3 className="font-semibold text-slate-900">Store Information</h3>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Store Name</label>
-              <input className="input" value={storeName} onChange={e => setStoreName(e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Tagline</label>
-              <input className="input" value={tagline} onChange={e => setTagline(e.target.value)} placeholder="Your store's tagline..." />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Store Description</label>
-              <textarea className="input h-20 resize-none" placeholder="Tell customers about your store..." value={description} onChange={e => setDescription(e.target.value)} />
-            </div>
-          </div>
-
-          {/* Domain & Theme */}
+          {/* ══ LEFT — editable settings ══ */}
           <div className="space-y-5">
+            {/* Store Info */}
             <div className="card p-5 space-y-4">
               <div className="flex items-center gap-2 mb-1">
-                <Globe className="h-4 w-4 text-brand-600" />
-                <h3 className="font-semibold text-slate-900">Domain Settings</h3>
+                <Store className="h-4 w-4 text-brand-600" />
+                <h3 className="font-semibold text-slate-900">Store Information</h3>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Subdomain (free)</label>
-                <div className="flex">
-                  <input className="input rounded-r-none border-r-0" value={myStore.slug} readOnly />
-                  <span className="flex items-center px-3 bg-slate-100 border border-slate-300 rounded-r-lg text-sm text-slate-500 whitespace-nowrap">
-                    .askindia.shop
-                  </span>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Store Name</label>
+                  <input className="input" value={storeName} onChange={e => setStoreName(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Tagline</label>
+                  <input className="input" value={tagline} onChange={e => setTagline(e.target.value)} placeholder="Your store's tagline..." />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Custom Domain (pro)</label>
-                <input className="input" placeholder="e.g. mystore.com" />
-                <p className="text-xs text-slate-400 mt-1">Upgrade to Pro plan to use a custom domain</p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-medium text-slate-700">Store Description</label>
+                  <span className="text-xs text-slate-400">{description.length}/300</span>
+                </div>
+                <textarea className="input h-24 resize-none" maxLength={300} placeholder="Tell customers what makes your store special…" value={description} onChange={e => setDescription(e.target.value)} />
               </div>
             </div>
 
-            <div className="card p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Palette className="h-4 w-4 text-brand-600" />
-                <h3 className="font-semibold text-slate-900">Theme Color</h3>
+            {/* Domain + Theme side by side */}
+            <div className="grid sm:grid-cols-2 gap-5">
+              <div className="card p-5 space-y-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Globe className="h-4 w-4 text-brand-600" />
+                  <h3 className="font-semibold text-slate-900">Domain</h3>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Subdomain (free)</label>
+                  <div className="flex">
+                    <input className="input rounded-r-none border-r-0" value={myStore.slug} readOnly />
+                    <span className="flex items-center px-2.5 bg-slate-100 border border-slate-300 rounded-r-lg text-xs text-slate-500 whitespace-nowrap">
+                      .askindia.shop
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Custom Domain <span className="text-xs text-amber-600 font-normal">Pro</span></label>
+                  <input className="input" placeholder="e.g. mystore.com" disabled />
+                  <p className="text-xs text-slate-400 mt-1">Upgrade to Pro to connect your own domain.</p>
+                </div>
               </div>
-              <div className="grid grid-cols-6 gap-2">
-                {THEMES.map(t => (
-                  <button
-                    key={t.color}
-                    onClick={() => setSelectedTheme(t.color)}
-                    className="relative w-10 h-10 rounded-xl transition-transform hover:scale-110"
-                    style={{ background: t.color }}
-                    title={t.name}
-                  >
-                    {selectedTheme === t.color && (
-                      <CheckCircle className="absolute inset-0 m-auto h-5 w-5 text-white" />
-                    )}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-slate-400 mt-2">Selected: {THEMES.find(t => t.color === selectedTheme)?.name}</p>
-            </div>
-          </div>
-        </div>
 
-        {/* Social links */}
-        <div className="card p-5 space-y-4">
-          <h3 className="font-semibold text-slate-900">Social & Contact</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">WhatsApp</label>
-              <input className="input" placeholder="+91 98765 43210" />
+              <div className="card p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Palette className="h-4 w-4 text-brand-600" />
+                  <h3 className="font-semibold text-slate-900">Theme Color</h3>
+                </div>
+                <div className="grid grid-cols-6 xl:grid-cols-3 gap-2.5">
+                  {THEMES.map(t => (
+                    <button
+                      key={t.color}
+                      onClick={() => setSelectedTheme(t.color)}
+                      className="relative w-full aspect-square rounded-xl transition-transform hover:scale-105"
+                      style={{ background: t.color }}
+                      title={t.name}
+                    >
+                      {selectedTheme === t.color && (
+                        <CheckCircle className="absolute inset-0 m-auto h-5 w-5 text-white drop-shadow" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400 mt-3">
+                  Selected: <span className="font-medium text-slate-600">{THEMES.find(t => t.color === selectedTheme)?.name ?? 'Custom'}</span>
+                </p>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Instagram</label>
-              <input className="input" placeholder="@yourstorehandle" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Facebook</label>
-              <input className="input" placeholder="facebook.com/yourstore" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Support Email</label>
-              <input className="input" placeholder="support@yourstore.com" />
+
+            {/* Social & Contact — now wired to storage */}
+            <div className="card p-5 space-y-4">
+              <h3 className="font-semibold text-slate-900">Social & Contact</h3>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">WhatsApp</label>
+                  <input className="input" placeholder="+91 98765 43210" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Instagram</label>
+                  <input className="input" placeholder="@yourstorehandle" value={instagram} onChange={e => setInstagram(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Facebook</label>
+                  <input className="input" placeholder="facebook.com/yourstore" value={facebook} onChange={e => setFacebook(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Support Email</label>
+                  <input className="input" placeholder="support@yourstore.com" value={supportEmail} onChange={e => setSupportEmail(e.target.value)} />
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* ══ RIGHT — live storefront preview (sticky, fills the space) ══ */}
+          <aside className="xl:sticky xl:top-4 space-y-4">
+            <div className="card overflow-hidden">
+              <div className="h-28 relative" style={{ background: `linear-gradient(135deg, ${selectedTheme}, ${selectedTheme}aa)` }}>
+                <div className="absolute inset-0 opacity-10" style={{
+                  backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 20px)`
+                }} />
+                <span className="absolute top-3 right-3 text-[10px] font-semibold uppercase tracking-wider text-white/80 bg-black/20 px-2 py-0.5 rounded-full">
+                  Live Preview
+                </span>
+              </div>
+              <div className="px-5 pb-5">
+                <div className="relative z-10 flex items-end gap-3 -mt-10 mb-3">
+                  <StoreLogo logo={myStore.logo} name={myStore.name}
+                    className="w-[4.5rem] h-[4.5rem] rounded-2xl border-4 border-white shadow-lg text-3xl leading-none bg-white" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900 leading-tight">{storeName || 'Your Store Name'}</h2>
+                <p className="text-slate-500 text-sm mt-0.5">{tagline || 'Your tagline appears here'}</p>
+                {description && <p className="text-slate-400 text-xs mt-2 line-clamp-3">{description}</p>}
+
+                <a href={`https://${myStore.slug}.askindia.shop`} target="_blank" rel="noreferrer"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-mono text-brand-600 bg-brand-50 border border-brand-100 rounded-lg px-3 py-1.5 hover:bg-brand-100 transition-colors">
+                  🌐 {myStore.slug}.askindia.shop
+                </a>
+
+                {(whatsapp || instagram || facebook || supportEmail) && (
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {whatsapp   && <span className="text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full px-2 py-0.5">WhatsApp</span>}
+                    {instagram  && <span className="text-[11px] bg-pink-50 text-pink-700 border border-pink-100 rounded-full px-2 py-0.5">Instagram</span>}
+                    {facebook   && <span className="text-[11px] bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-2 py-0.5">Facebook</span>}
+                    {supportEmail && <span className="text-[11px] bg-slate-100 text-slate-600 rounded-full px-2 py-0.5">Email</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick stats fill remaining space */}
+            <div className="card p-4 grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs text-slate-400">Status</p>
+                <p className={`text-sm font-semibold capitalize ${myStore.status === 'active' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  ● {myStore.status}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Total Orders</p>
+                <p className="text-sm font-semibold text-slate-900">{myStore.totalOrders ?? 0}</p>
+              </div>
+              <div className="col-span-2 pt-2 border-t border-slate-100">
+                <p className="text-xs text-slate-400">Theme &amp; details update live as you type — nothing is saved until you hit <span className="font-medium text-slate-500">Save Changes</span>.</p>
+              </div>
+            </div>
+          </aside>
         </div>
 
         {/* ── Invoice & GST Settings ── */}
@@ -413,8 +483,8 @@ export const StoreProfile: React.FC = () => {
           )}
         </div>
 
-        <div className="flex justify-end gap-3">
-          <button className="btn-secondary">Discard Changes</button>
+        <div className="sticky bottom-0 -mx-4 px-4 py-3 bg-white/90 backdrop-blur border-t border-slate-200 flex justify-end gap-3 z-10">
+          <button onClick={resetForm} className="btn-secondary">Discard Changes</button>
           <button onClick={save} className={`btn-primary ${saved ? '!bg-emerald-600' : ''}`}>
             {saved ? <><CheckCircle className="h-4 w-4" /> Saved!</> : 'Save Changes'}
           </button>

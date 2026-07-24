@@ -1,28 +1,75 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
-import { formatCurrency } from '../../data/mockData';
+import { formatCurrency, formatDate } from '../../data/mockData';
+import { mutations } from '../../lib/dataService';
+import type { ProductReviews } from '../../types';
 import {
   ArrowLeft, Star, MapPin, ShoppingCart, Zap, Check,
-  ChevronLeft, ChevronRight, Shield, RotateCcw, Package,
+  ChevronLeft, ChevronRight, Shield, RotateCcw, Package, Loader2,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { ProductImage } from '../../components/ui/ProductImage';
 
-const TABS = ['Description', 'Specifications', 'Warranty & Returns'] as const;
+const TABS = ['Description', 'Specifications', 'Reviews', 'Warranty & Returns'] as const;
 type Tab = typeof TABS[number];
+
+/** Read-only star row. `value` may be fractional — the last lit star is half-filled. */
+const Stars: React.FC<{ value: number; className?: string }> = ({ value, className }) => {
+  const full = Math.floor(value);
+  const hasHalf = value - full >= 0.5;
+  return (
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star
+          key={i}
+          className={clsx(
+            className ?? 'h-4 w-4',
+            i < full
+              ? 'fill-amber-400 text-amber-400'
+              : i === full && hasHalf
+                ? 'fill-amber-200 text-amber-400'
+                : 'fill-slate-200 text-slate-200'
+          )}
+        />
+      ))}
+    </div>
+  );
+};
 
 export const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { products, currentUser, addToCart } = useAppStore();
+  const { products, currentUser, addToCart, trackActivity } = useAppStore();
 
   const product = products.find(p => p.id === id);
+
+  // Log a product view once per product opened.
+  useEffect(() => {
+    if (product) trackActivity('product_view', { productId: product.id, productName: product.name }, `/shop/product/${product.id}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   const [selectedImg, setSelectedImg] = useState(0);
   const [qty, setQty] = useState(1);
   const [activeTab, setActiveTab] = useState<Tab>('Description');
   const [addedToCart, setAddedToCart] = useState(false);
+
+  const [reviewData, setReviewData] = useState<ProductReviews | null>(null);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    setLoadingReviews(true);
+    setReviewData(null);
+    mutations.loadProductReviews(id)
+      .then(data => { if (!cancelled) setReviewData(data); })
+      .catch(() => { if (!cancelled) setReviewData({ reviews: [], avgRating: 0, count: 0 }); })
+      .finally(() => { if (!cancelled) setLoadingReviews(false); });
+    return () => { cancelled = true; };
+  }, [id]);
 
   const shopPath = currentUser?.role === 'customer' ? '/shop' : currentUser ? '/shop' : '/';
 
@@ -47,9 +94,8 @@ export const ProductDetail: React.FC = () => {
   const canAdd = isAvailable && !isOutOfStock;
 
   const disc = product.mrp > product.price ? Math.round(((product.mrp - product.price) / product.mrp) * 100) : 0;
-  const rating = Math.min(5, Math.max(3, 3 + product.sold / 200));
-  const fullStars = Math.floor(rating);
-  const hasHalf = rating - fullStars >= 0.5;
+  const reviewCount = reviewData?.count ?? 0;
+  const avgRating = reviewData?.avgRating ?? 0;
 
   const relatedProducts = products.filter(
     p => p.categoryId === product.categoryId && p.id !== product.id && p.status === 'active'
@@ -145,24 +191,18 @@ export const ProductDetail: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="relative rounded-2xl overflow-hidden">
-                <div className={clsx(
-                  'h-80 sm:h-96 bg-gradient-to-br flex items-center justify-center text-9xl',
-                  product.imageColor
-                )}>
-                  {product.imageIcon}
-                  {product.featured && (
-                    <span className="absolute top-3 left-3 bg-white/90 backdrop-blur text-brand-700 text-xs font-bold px-2.5 py-1 rounded-full">
-                      ⭐ Featured
-                    </span>
-                  )}
-                  {disc > 0 && (
-                    <span className="absolute top-3 right-3 bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                      -{disc}%
-                    </span>
-                  )}
-                </div>
-              </div>
+              <ProductImage product={product} className="h-80 sm:h-96 rounded-2xl">
+                {product.featured && (
+                  <span className="absolute top-3 left-3 bg-white/90 backdrop-blur text-brand-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                    ⭐ Featured
+                  </span>
+                )}
+                {disc > 0 && (
+                  <span className="absolute top-3 right-3 bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                    -{disc}%
+                  </span>
+                )}
+              </ProductImage>
             )}
           </div>
 
@@ -191,28 +231,28 @@ export const ProductDetail: React.FC = () => {
               {product.name}
             </h1>
 
-            {/* Rating row */}
-            {product.sold > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className={clsx(
-                        'h-4 w-4',
-                        i < fullStars
-                          ? 'fill-amber-400 text-amber-400'
-                          : i === fullStars && hasHalf
-                            ? 'fill-amber-200 text-amber-400'
-                            : 'fill-slate-200 text-slate-200'
-                      )}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm font-semibold text-slate-700">{rating.toFixed(1)}</span>
-                <span className="text-sm text-slate-400">({product.sold} sold)</span>
-              </div>
-            )}
+            {/* Rating row — real reviews only; no stars until someone has rated */}
+            <div className="flex items-center gap-2 flex-wrap min-h-[20px]">
+              {reviewCount > 0 ? (
+                <>
+                  <Stars value={avgRating} />
+                  <span className="text-sm font-semibold text-slate-700">{avgRating.toFixed(1)}</span>
+                  <button
+                    onClick={() => setActiveTab('Reviews')}
+                    className="text-sm text-slate-400 hover:text-brand-600 transition-colors"
+                  >
+                    ({reviewCount} review{reviewCount !== 1 ? 's' : ''})
+                  </button>
+                </>
+              ) : !loadingReviews && (
+                <span className="text-sm text-slate-400">No reviews yet</span>
+              )}
+              {product.sold > 0 && (
+                <span className="text-sm text-slate-400">
+                  {reviewCount > 0 ? '· ' : ''}{product.sold} sold
+                </span>
+              )}
+            </div>
 
             {/* Price row */}
             <div className="flex items-center gap-3 flex-wrap">
@@ -282,10 +322,7 @@ export const ProductDetail: React.FC = () => {
                 <p className="text-sm font-medium text-brand-700">Sign in to add this product to your cart or buy now</p>
                 <div className="flex gap-3 justify-center">
                   <button onClick={() => navigate('/login')} className="btn-primary px-6 py-2.5 text-sm">
-                    Sign In
-                  </button>
-                  <button onClick={() => navigate('/register/customer')} className="btn-secondary px-6 py-2.5 text-sm">
-                    Create Account
+                    Sign In to Continue
                   </button>
                 </div>
               </div>
@@ -382,6 +419,58 @@ export const ProductDetail: React.FC = () => {
                     <p className="text-sm text-slate-400 text-center py-4">No specifications available.</p>
                   )
                 )}
+                {activeTab === 'Reviews' && (
+                  loadingReviews ? (
+                    <div className="flex justify-center py-6">
+                      <Loader2 className="h-5 w-5 animate-spin text-slate-300" />
+                    </div>
+                  ) : reviewCount === 0 ? (
+                    <div className="text-center py-6 space-y-1">
+                      <Star className="h-8 w-8 mx-auto fill-slate-100 text-slate-200" />
+                      <p className="text-sm font-medium text-slate-600">No reviews yet</p>
+                      <p className="text-xs text-slate-400">Reviews appear here once a buyer rates a delivered order.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Summary */}
+                      <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
+                        <div className="text-center">
+                          <p className="text-3xl font-bold text-slate-900 leading-none">{avgRating.toFixed(1)}</p>
+                          <p className="text-xs text-slate-400 mt-1">out of 5</p>
+                        </div>
+                        <div className="space-y-1">
+                          <Stars value={avgRating} />
+                          <p className="text-xs text-slate-500">
+                            Based on {reviewCount} review{reviewCount !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Individual reviews */}
+                      <div className="space-y-4">
+                        {reviewData!.reviews.map(r => (
+                          <div key={r.id} className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-7 h-7 rounded-full bg-brand-50 text-brand-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                  {(r.customerName ?? 'A').charAt(0).toUpperCase()}
+                                </div>
+                                <span className="text-sm font-medium text-slate-800 truncate">
+                                  {r.customerName ?? 'Anonymous'}
+                                </span>
+                              </div>
+                              <span className="text-xs text-slate-400 flex-shrink-0">{formatDate(r.createdAt)}</span>
+                            </div>
+                            <Stars value={r.rating} className="h-3.5 w-3.5" />
+                            {r.reviewText && (
+                              <p className="text-sm text-slate-600 leading-relaxed">{r.reviewText}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                )}
                 {activeTab === 'Warranty & Returns' && (
                   <div className="space-y-4">
                     <div className="flex gap-3">
@@ -423,14 +512,13 @@ export const ProductDetail: React.FC = () => {
                     to={`/shop/product/${p.id}`}
                     className="card overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 block"
                   >
-                    <div className={clsx('h-28 bg-gradient-to-br flex items-center justify-center text-4xl relative', p.imageColor)}>
+                    <ProductImage product={p} emojiClass="text-4xl" className="h-28">
                       {rDisc > 0 && (
                         <span className="absolute top-1.5 right-1.5 bg-emerald-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
                           -{rDisc}%
                         </span>
                       )}
-                      {p.imageIcon}
-                    </div>
+                    </ProductImage>
                     <div className="p-3">
                       <h3 className="font-semibold text-slate-800 text-xs leading-tight mb-1.5 line-clamp-2">{p.name}</h3>
                       <div className="flex items-baseline gap-1.5">

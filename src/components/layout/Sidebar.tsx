@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Store, ShoppingCart, BarChart3,
   Wallet, LogOut, CreditCard, Bell, Briefcase, ClipboardList, Home, Users, Palette, UserCircle, Globe,
-  Activity, ShieldCheck, TrendingUp,
+  Activity, ShieldCheck, TrendingUp, Truck,
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { NotificationPanel } from './NotificationPanel';
@@ -59,6 +59,12 @@ const agentLinks = [
   { to: '/agent/wallet', icon: Wallet, label: 'My Wallet' },
 ];
 
+const deliveryLinks = [
+  { to: '/delivery', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/delivery/orders', icon: Truck, label: 'Delivery Queue' },
+  { to: '/delivery/profile', icon: UserCircle, label: 'My Profile' },
+];
+
 export const Sidebar: React.FC = () => {
   const { currentUser, logout, notifications, sidebarOpen } = useAppStore();
   const navigate = useNavigate();
@@ -72,6 +78,7 @@ export const Sidebar: React.FC = () => {
     currentUser.role === 'store_owner' ? storeLinks :
     currentUser.role === 'service_provider' ? providerLinks :
     currentUser.role === 'agent' ? agentLinks :
+    currentUser.role === 'delivery_partner' ? deliveryLinks :
     customerLinks;
 
   const roleLabel =
@@ -79,6 +86,7 @@ export const Sidebar: React.FC = () => {
     currentUser.role === 'store_owner' ? 'Store Owner' :
     currentUser.role === 'service_provider' ? 'Service Provider' :
     currentUser.role === 'agent' ? 'Sales Agent' :
+    currentUser.role === 'delivery_partner' ? 'Delivery Partner' :
     'Customer';
 
   const roleColor =
@@ -86,6 +94,7 @@ export const Sidebar: React.FC = () => {
     currentUser.role === 'store_owner' ? 'bg-emerald-500' :
     currentUser.role === 'service_provider' ? 'bg-violet-500' :
     currentUser.role === 'agent' ? 'bg-orange-500' :
+    currentUser.role === 'delivery_partner' ? 'bg-indigo-500' :
     'bg-sky-500';
 
   const handleLogout = () => { logout(); navigate('/'); };

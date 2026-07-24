@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Printer, Download } from 'lucide-react';
 import type { Order, ServiceOrder, InvoiceSettings } from '../types';
+import { useAppStore } from '../store/useAppStore';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -426,6 +427,7 @@ interface InvoiceModalProps {
 
 export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, invoiceSettings, type, onClose }) => {
   const handlePrint = () => {
+    useAppStore.getState().trackActivity('invoice_download', { orderId: (order as { id?: string }).id ?? '', type });
     const html = generateInvoiceHtml(order, invoiceSettings, type);
     const w = window.open('', '_blank', 'width=900,height=780,scrollbars=yes');
     if (w) {

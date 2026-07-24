@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '../../components/layout/AppLayout';
-import { PRODUCT_CATEGORIES, formatCurrency } from '../../data/mockData';
+import { PRODUCT_CATEGORIES, formatCurrency, resolveCategoryId } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
 import { Search, ShoppingCart, Star, X, MapPin, SlidersHorizontal, Filter, Eye } from 'lucide-react';
 import type { Product } from '../../types';
 import clsx from 'clsx';
+import { ProductImage } from '../../components/ui/ProductImage';
 
 type SortOption = 'featured' | 'newest' | 'price_asc' | 'price_desc' | 'popular' | 'discount';
 
@@ -26,7 +27,7 @@ const PRICE_PRESETS = [
 ];
 
 export const CustomerStorefront: React.FC = () => {
-  const { products, currentUser, addToCart } = useAppStore();
+  const { products, currentUser, addToCart, trackActivity } = useAppStore();
   const [searchParams] = useSearchParams();
   const isCustomer = currentUser?.role === 'customer';
 
@@ -38,6 +39,15 @@ export const CustomerStorefront: React.FC = () => {
     const cat = searchParams.get('cat');
     if (cat) setSelectedCats([cat]);
   }, [searchParams]);
+
+  // Log searches (debounced so we don't fire on every keystroke).
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) return;
+    const t = setTimeout(() => trackActivity('search', { query: q }, '/shop'), 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('featured');
@@ -54,7 +64,7 @@ export const CustomerStorefront: React.FC = () => {
   const filtered = useMemo(() => {
     return activeProducts
       .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.category.toLowerCase().includes(search.toLowerCase()))
-      .filter(p => selectedCats.length === 0 || selectedCats.includes(p.categoryId))
+      .filter(p => selectedCats.length === 0 || selectedCats.includes(resolveCategoryId(p)))
       .filter(p => !priceMin || p.price >= Number(priceMin))
       .filter(p => !priceMax || p.price <= Number(priceMax))
       .filter(p => !featuredOnly || p.featured)
@@ -73,8 +83,10 @@ export const CustomerStorefront: React.FC = () => {
       });
   }, [activeProducts, search, selectedCats, priceMin, priceMax, sortBy, availFilter, featuredOnly]);
 
-  const toggleCat = (id: string) =>
+  const toggleCat = (id: string) => {
     setSelectedCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+    trackActivity('filter_apply', { type: 'category', value: id }, '/shop');
+  };
 
   const clearAll = () => {
     setSearch('');
@@ -433,7 +445,7 @@ export const CustomerStorefront: React.FC = () => {
                         !available && 'opacity-70'
                       )}
                     >
-                      <div className={clsx('h-40 bg-gradient-to-br flex items-center justify-center text-5xl relative', product.imageColor)}>
+                      <ProductImage product={product} emojiClass="text-5xl" fit="contain" className="h-52">
                         {product.featured && (
                           <span className="absolute top-2 left-2 bg-white/90 backdrop-blur text-brand-700 text-xs font-bold px-2 py-0.5 rounded-full">
                             ⭐ Featured
@@ -451,8 +463,7 @@ export const CustomerStorefront: React.FC = () => {
                             </span>
                           </div>
                         )}
-                        {product.imageIcon}
-                      </div>
+                      </ProductImage>
 
                       <div className="p-4">
                         <p className="text-xs text-slate-400 mb-0.5 truncate">{product.category}</p>

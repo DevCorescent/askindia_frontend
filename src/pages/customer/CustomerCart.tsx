@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
+import { ProductImage } from '../../components/ui/ProductImage';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../data/mockData';
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
@@ -56,9 +57,7 @@ export const CustomerCart: React.FC = () => {
 
           {cart.map(({ product, quantity }) => (
             <div key={product.id} className="card p-4 flex items-center gap-4">
-              <div className={`w-20 h-20 rounded-xl bg-gradient-to-br ${product.imageColor} flex items-center justify-center text-4xl flex-shrink-0`}>
-                {product.imageIcon}
-              </div>
+              <ProductImage product={product} fit="contain" className="w-20 h-20 rounded-xl flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-slate-400">{product.category}</p>
                 <p className="font-semibold text-slate-900 text-sm mt-0.5 leading-tight">{product.name}</p>

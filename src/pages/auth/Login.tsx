@@ -17,6 +17,7 @@ const navigateByRole = (role: string, navigate: ReturnType<typeof useNavigate>) 
   else if (role === 'store_owner')  navigate('/store');
   else if (role === 'service_provider') navigate('/service-provider');
   else if (role === 'agent')        navigate('/agent');
+  else if (role === 'delivery_partner') navigate('/delivery');
   else                              navigate('/shop');
 };
 
@@ -77,9 +78,9 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex">
       {/* Left brand panel */}
-      <div className="hidden lg:flex lg:w-[42%] flex-col justify-between p-12" style={{ background: 'linear-gradient(135deg, #0d1f6e 0%, #1a3baa 60%, #0d1f6e 100%)' }}>
+      <div className="hidden lg:flex lg:w-[42%] flex-col justify-between p-10" style={{ background: 'linear-gradient(135deg, #0d1f6e 0%, #1a3baa 60%, #0d1f6e 100%)' }}>
         <div className="flex items-center gap-3">
-          <AskIndiaLogo size={38} showText={true} textClass="text-xl" className="brightness-0 invert" />
+          <AskIndiaLogo size={38} showText={true} textClass="text-xl" tone="light" />
         </div>
 
         <div>
@@ -107,8 +108,8 @@ export const Login: React.FC = () => {
       </div>
 
       {/* Right form panel */}
-      <div className="flex-1 flex items-start justify-center bg-slate-50 p-6 overflow-y-auto">
-        <div className="w-full max-w-md py-8">
+      <div className="flex-1 flex items-center justify-center bg-slate-50 px-6 py-8 overflow-y-auto">
+        <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="flex items-center gap-2.5 mb-8 lg:hidden">
             <AskIndiaLogo size={32} showText={true} textClass="text-lg" />
@@ -213,15 +214,15 @@ export const Login: React.FC = () => {
               </Link>
 
               <Link
-                to="/register/customer"
+                to="/"
                 className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all group text-center"
               >
                 <div className="w-9 h-9 bg-emerald-100 group-hover:bg-emerald-200 rounded-xl flex items-center justify-center transition-colors">
                   <ShoppingCart className="h-4 w-4 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-900">Shop Now</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Buy products</p>
+                  <p className="text-xs font-semibold text-slate-900">Browse Shop</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Explore products</p>
                 </div>
               </Link>
             </div>

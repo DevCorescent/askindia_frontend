@@ -8,9 +8,11 @@ import type { Store } from '../../types';
 import {
   Search, Plus, X, ShoppingBag, Briefcase, CheckCircle, XCircle,
   Eye, Store as StoreIcon, AlertTriangle, RefreshCw, ExternalLink,
-  Building2, CreditCard, Info,
+  Building2, CreditCard, Info, ImagePlus, Loader2,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { StoreLogo, isImageLogo } from '../../components/ui/StoreLogo';
+import { uploadImage } from '../../utils/imageUpload';
 
 const slugify = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -64,6 +66,7 @@ export const AdminStores: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<StoreTab>('product');
   const [search, setSearch] = useState('');
+  const [logoUploading, setLogoUploading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
 
   const [showCreate, setShowCreate] = useState(false);
@@ -317,12 +320,12 @@ export const AdminStores: React.FC = () => {
               <div key={store.id} className="card p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                    <StoreLogo
+                      logo={store.logo}
+                      name={store.name}
+                      className="w-12 h-12 rounded-xl text-2xl flex-shrink-0"
                       style={{ background: store.themeColor + '22' }}
-                    >
-                      {store.logo}
-                    </div>
+                    />
                     <div className="min-w-0">
                       <p className="font-semibold text-slate-900 truncate">{store.name}</p>
                       <p className="text-xs text-slate-500 truncate">{store.tagline}</p>
@@ -497,18 +500,32 @@ export const AdminStores: React.FC = () => {
                 <div className="space-y-3">
                   <div className="flex items-center gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Logo Emoji</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Logo</label>
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl flex-shrink-0"
-                          style={{ background: form.themeColor + '22' }}
-                        >
-                          {form.logo || '?'}
-                        </div>
+                        <StoreLogo
+                          logo={form.logo}
+                          name={form.name}
+                          className="w-14 h-14 rounded-xl text-3xl flex-shrink-0"
+                          style={isImageLogo(form.logo) ? undefined : { background: form.themeColor + '22' }}
+                        />
+                        <label className={clsx(
+                          'flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-dashed cursor-pointer text-sm font-medium transition-colors',
+                          logoUploading ? 'border-slate-200 text-slate-300' : 'border-slate-300 text-slate-600 hover:border-indigo-400 hover:text-indigo-500',
+                        )}>
+                          {logoUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                          {logoUploading ? 'Uploading…' : 'Upload'}
+                          <input type="file" accept="image/*" className="hidden" disabled={logoUploading}
+                            onChange={async e => {
+                              const file = e.target.files?.[0]; e.target.value = '';
+                              if (!file) return;
+                              setLogoUploading(true);
+                              try { setField('logo', await uploadImage(file)); } catch { /* keep */ } finally { setLogoUploading(false); }
+                            }} />
+                        </label>
                         <input
                           className="input w-20 text-center text-2xl"
                           maxLength={2}
-                          value={form.logo}
+                          value={isImageLogo(form.logo) ? '' : form.logo}
                           onChange={e => setField('logo', e.target.value)}
                           placeholder="🏪"
                         />
@@ -695,12 +712,12 @@ export const AdminStores: React.FC = () => {
               </button>
 
               <div className="flex items-start gap-4">
-                <div
-                  className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0"
+                <StoreLogo
+                  logo={selectedStore.logo}
+                  name={selectedStore.name}
+                  className="w-16 h-16 rounded-2xl text-3xl flex-shrink-0"
                   style={{ background: selectedStore.themeColor + '30' }}
-                >
-                  {selectedStore.logo}
-                </div>
+                />
                 <div className="flex-1 min-w-0 pr-8">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h2 className="font-bold text-slate-900 text-lg leading-tight">{selectedStore.name}</h2>

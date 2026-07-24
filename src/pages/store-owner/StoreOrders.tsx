@@ -5,11 +5,48 @@ import { Modal } from '../../components/ui/Modal';
 import { formatCurrency, formatDate } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
 import type { Order } from '../../types';
-import { Search, Eye, Download } from 'lucide-react';
+import { Search, Eye, Download, Check, Package, Truck, PackageCheck, X, Clock } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { InvoiceModal } from '../../components/InvoiceTemplate';
+import { ProductImage } from '../../components/ui/ProductImage';
+import { toast } from '../../components/ui/Toast';
+
+// Fulfilment lifecycle the store owner drives (mirrors the admin controls).
+const FLOW: Order['status'][] = ['pending', 'processing', 'shipped', 'delivered'];
+const STEPS: { key: Order['status']; label: string; icon: React.ElementType }[] = [
+  { key: 'pending',    label: 'Order Placed', icon: Check },
+  { key: 'processing', label: 'Processing',   icon: Package },
+  { key: 'shipped',    label: 'Shipped',      icon: Truck },
+  { key: 'delivered',  label: 'Delivered',    icon: PackageCheck },
+];
 
 export const StoreOrders: React.FC = () => {
-  const { currentUser, orders, stores } = useAppStore();
+  const { currentUser, orders, stores, products, updateOrder } = useAppStore();
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  // Store owner's only fulfilment action: accept a pending order → processing.
+  // Shipping & delivery are handled by the delivery partner.
+  const acceptOrder = async (order: Order) => {
+    setProcessingId(order.id);
+    try {
+      await updateOrder(order.id, { status: 'processing' });
+      if (selectedOrder?.id === order.id) setSelectedOrder({ ...order, status: 'processing' });
+      toast.success(`Order #${order.id.toUpperCase()} accepted — now processing`);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+  // Resolve an order line-item to its live product visual (real photo when available).
+  const itemVisual = (item: { productId?: string; productName: string; productIcon: string; productColor: string }) => {
+    const prod = products.find(p => p.id === item.productId);
+    return {
+      name:       item.productName,
+      thumbnail:  prod?.thumbnail,
+      images:     prod?.images,
+      imageColor: item.productColor,
+      imageIcon:  item.productIcon,
+    };
+  };
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -89,9 +126,7 @@ export const StoreOrders: React.FC = () => {
                     <td className="table-td text-sm">
                       <div className="flex -space-x-1">
                         {order.items.slice(0, 3).map((item, i) => (
-                          <div key={i} className={`w-7 h-7 rounded-lg bg-gradient-to-br ${item.productColor} flex items-center justify-center text-sm border-2 border-white`}>
-                            {item.productIcon}
-                          </div>
+                          <ProductImage key={i} product={itemVisual(item)} emojiClass="text-sm" className="w-7 h-7 rounded-lg border-2 border-white" />
                         ))}
                         {order.items.length > 3 && <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 border-2 border-white">+{order.items.length - 3}</div>}
                       </div>
@@ -104,6 +139,17 @@ export const StoreOrders: React.FC = () => {
                     <td className="table-td">{statusBadge(order.status)}</td>
                     <td className="table-td">
                       <div className="flex items-center gap-1">
+                        {order.status === 'pending' && (
+                          <button
+                            onClick={() => acceptOrder(order)}
+                            disabled={processingId === order.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition-colors whitespace-nowrap disabled:opacity-60"
+                            title="Accept & start processing"
+                          >
+                            {processingId === order.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Package className="h-3.5 w-3.5" />}
+                            <span className="hidden lg:inline">Accept &amp; Process</span>
+                          </button>
+                        )}
                         <button onClick={() => setSelectedOrder(order)} className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-colors" title="View details">
                           <Eye className="h-4 w-4" />
                         </button>
@@ -141,6 +187,69 @@ export const StoreOrders: React.FC = () => {
               <p className="font-mono text-brand-600 font-bold">#{selectedOrder.id.toUpperCase()}</p>
               {statusBadge(selectedOrder.status)}
             </div>
+
+            {/* Fulfilment tracker + controls */}
+            {selectedOrder.status === 'cancelled' ? (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
+                <X className="h-5 w-5" />
+                <div>
+                  <p className="font-semibold text-sm">Order Cancelled</p>
+                  {selectedOrder.cancelReason && <p className="text-xs text-red-600">{selectedOrder.cancelReason}</p>}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                {/* Stepper */}
+                <div className="flex items-center">
+                  {STEPS.map((step, i) => {
+                    const curIdx = FLOW.indexOf(selectedOrder.status);
+                    const done = i <= curIdx;
+                    const Icon = step.icon;
+                    return (
+                      <React.Fragment key={step.key}>
+                        <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                            done ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-400'
+                          }`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <span className={`text-[11px] font-medium ${done ? 'text-slate-700' : 'text-slate-400'}`}>{step.label}</span>
+                        </div>
+                        {i < STEPS.length - 1 && (
+                          <div className={`flex-1 h-0.5 mx-1 -mt-5 ${i < curIdx ? 'bg-brand-600' : 'bg-slate-200'}`} />
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+
+                {/* Status note + the store owner's single action (accept) */}
+                <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-200">
+                  {selectedOrder.status === 'pending' ? (
+                    <button
+                      onClick={() => acceptOrder(selectedOrder)}
+                      disabled={processingId === selectedOrder.id}
+                      className="btn-primary gap-2 text-sm disabled:opacity-60"
+                    >
+                      {processingId === selectedOrder.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
+                      Accept &amp; Process
+                    </button>
+                  ) : selectedOrder.status === 'delivered' ? (
+                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
+                      <PackageCheck className="h-4 w-4" /> Order delivered
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                      <Truck className="h-4 w-4 text-brand-500" />
+                      With delivery partner — <span className="font-semibold text-slate-700 capitalize">{selectedOrder.status}</span>
+                    </span>
+                  )}
+                  <span className="text-xs text-slate-400 ml-auto inline-flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> Shipping &amp; delivery handled by delivery partner
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-50 rounded-xl p-4">
                 <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Customer</p>
@@ -157,9 +266,7 @@ export const StoreOrders: React.FC = () => {
               {selectedOrder.items.map((item, i) => (
                 <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${item.productColor} flex items-center justify-center`}>
-                      {item.productIcon}
-                    </div>
+                    <ProductImage product={itemVisual(item)} emojiClass="text-base" className="w-9 h-9 rounded-lg" />
                     <div>
                       <p className="text-sm font-medium">{item.productName}</p>
                       <p className="text-xs text-slate-500">Qty: {item.quantity}</p>

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
+import { ProductImage } from '../../components/ui/ProductImage';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../data/mockData';
 import {
@@ -53,6 +54,11 @@ const INDIAN_STATES = [
 ];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Local-dev switch: when VITE_SKIP_PAYMENT=true, UPI/Card orders are placed as
+// paid without the Cashfree gateway redirect. Off unless explicitly enabled, so
+// any environment that doesn't set the var (e.g. production) runs the real flow.
+const SKIP_PAYMENT = import.meta.env.VITE_SKIP_PAYMENT === 'true';
 
 // ── Saved-address helpers (localStorage, no DB migration needed) ─────────────
 const ADDR_KEY = (uid: string) => `ai_addrs_${uid}`;
@@ -209,8 +215,10 @@ export const CustomerCheckout: React.FC = () => {
     const localId = 'ORD' + Date.now().toString(36).toUpperCase();
     orderIdRef.current = localId;
 
-    // For Cashfree-routed methods the payment is initially pending
-    const initialPaymentStatus = (payMethod === 'upi' || payMethod === 'card') ? 'pending' : 'paid';
+    // For Cashfree-routed methods the payment is initially pending — unless the
+    // local-dev bypass is on, in which case the order is placed straight to paid.
+    const initialPaymentStatus =
+      (!SKIP_PAYMENT && (payMethod === 'upi' || payMethod === 'card')) ? 'pending' : 'paid';
 
     try {
       if (hasRealSession) {
@@ -238,8 +246,8 @@ export const CustomerCheckout: React.FC = () => {
             city: city.trim(), state: addrState, phone: phone.trim() || undefined,
           }).catch(() => {});
 
-          // Redirect to Cashfree for online payment methods
-          if (payMethod === 'upi' || payMethod === 'card') {
+          // Redirect to Cashfree for online payment methods (skipped in dev bypass)
+          if (!SKIP_PAYMENT && (payMethod === 'upi' || payMethod === 'card')) {
             const { paymentSessionId } = await api.post<{ paymentSessionId: string; cfOrderId: string }>(
               '/payments/cashfree/order', { orderId: dbId },
             );
@@ -681,9 +689,7 @@ export const CustomerCheckout: React.FC = () => {
           <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
             {cart.map(({ product, quantity }) => (
               <div key={product.id} className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${product.imageColor} flex items-center justify-center text-xl flex-shrink-0`}>
-                  {product.imageIcon}
-                </div>
+                <ProductImage product={product} fit="contain" className="w-10 h-10 rounded-lg flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-slate-900 truncate">{product.name}</p>
                   <p className="text-xs text-slate-400">Qty: {quantity}</p>

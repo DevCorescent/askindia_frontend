@@ -21,6 +21,20 @@ export const PRODUCT_CATEGORIES: Category[] = [
   { id: 'c10', name: 'Health & Wellness', slug: 'health', icon: '💊' },
 ];
 
+/**
+ * Canonical lookup of category id by display name (e.g. "Electronics" → "c1").
+ * The backend seeds `category_id` as a slugified name ("electronics", "home_&_living"),
+ * while admin-created products store the frontend id ("c1"). The display-name `category`
+ * field is the only value that is consistent across both, so we resolve through it.
+ */
+const CATEGORY_ID_BY_NAME = new Map(PRODUCT_CATEGORIES.map(c => [c.name, c.id]));
+
+/** Resolve a product's canonical frontend category id, regardless of how it was stored. */
+export const resolveCategoryId = (p: { categoryId?: string; category?: string }): string =>
+  (PRODUCT_CATEGORIES.some(c => c.id === p.categoryId) ? p.categoryId : undefined)
+  ?? CATEGORY_ID_BY_NAME.get(p.category ?? '')
+  ?? p.categoryId ?? '';
+
 export const SERVICE_CATEGORIES: ServiceCategory[] = [
   { id: 'sc1', name: 'Home Repairs', slug: 'home-repairs', icon: '🔧' },
   { id: 'sc2', name: 'Cleaning', slug: 'cleaning', icon: '🧹' },

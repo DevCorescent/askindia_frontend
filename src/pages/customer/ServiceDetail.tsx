@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
@@ -14,9 +14,14 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 export const ServiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { services, currentUser, addServiceOrder } = useAppStore();
+  const { services, currentUser, addServiceOrder, trackActivity } = useAppStore();
 
   const service = services.find(s => s.id === id);
+
+  useEffect(() => {
+    if (service) trackActivity('service_view', { serviceId: service.id, serviceName: service.title }, `/services/${service.id}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [service?.id]);
 
   const [showModal, setShowModal] = useState(false);
   const [bookingDate, setBookingDate] = useState('');
@@ -231,10 +236,7 @@ export const ServiceDetail: React.FC = () => {
                 <p className="text-sm font-medium text-violet-700">Sign in to book this service</p>
                 <div className="flex gap-3 justify-center">
                   <button onClick={() => navigate('/login')} className="px-5 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors">
-                    Sign In
-                  </button>
-                  <button onClick={() => navigate('/register/customer')} className="btn-secondary px-5 py-2 text-sm">
-                    Create Account
+                    Sign In to Book
                   </button>
                 </div>
               </div>

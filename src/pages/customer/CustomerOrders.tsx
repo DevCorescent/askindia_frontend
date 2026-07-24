@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { statusBadge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { InvoiceModal } from '../../components/InvoiceTemplate';
 import { mutations } from '../../lib/dataService';
 import clsx from 'clsx';
+import { ProductImage, productPhoto } from '../../components/ui/ProductImage';
 
 const TRACKING_STEPS = [
   { key: 'pending', label: 'Order Placed', icon: '📋' },
@@ -39,7 +40,18 @@ const ServiceStatusBadge: React.FC<{ status: string }> = ({ status }) => {
 const SERVICE_TIMELINE: ServiceOrder['status'][] = ['pending', 'confirmed', 'in_progress', 'completed'];
 
 export const CustomerOrders: React.FC = () => {
-  const { currentUser, orders, serviceOrders, stores, providerInvoiceSettings } = useAppStore();
+  const { currentUser, orders, serviceOrders, stores, providerInvoiceSettings, products } = useAppStore();
+  // Resolve an order line-item to its live product visual (real photo when available).
+  const itemVisual = (item: { productId?: string; productName: string; productIcon: string; productColor: string }) => {
+    const prod = products.find(p => p.id === item.productId);
+    return {
+      name:       item.productName,
+      thumbnail:  prod?.thumbnail,
+      images:     prod?.images,
+      imageColor: item.productColor,
+      imageIcon:  item.productIcon,
+    };
+  };
   const navigate = useNavigate();
   const [tab, setTab] = useState<'products' | 'services'>('products');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -47,31 +59,74 @@ export const CustomerOrders: React.FC = () => {
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [invoiceSvcOrder, setInvoiceSvcOrder] = useState<ServiceOrder | null>(null);
 
-  // Review state
-  const [reviewOrder, setReviewOrder]   = useState<Order | null>(null);
-  const [reviewRating, setReviewRating] = useState(0);
-  const [reviewHover, setReviewHover]   = useState(0);
-  const [reviewText, setReviewText]     = useState('');
+  // Review state — a review is per (order, product), so an order with several
+  // products can be rated one product at a time.
+  const [reviewOrder, setReviewOrder]         = useState<Order | null>(null);
+  const [reviewProductId, setReviewProductId] = useState<string>('');
+  const [reviewRating, setReviewRating]       = useState(0);
+  const [reviewHover, setReviewHover]         = useState(0);
+  const [reviewText, setReviewText]           = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
-  const [reviewedOrders, setReviewedOrders]     = useState<Set<string>>(new Set());
+  const [reviewError, setReviewError]           = useState('');
+  const [reviewedKeys, setReviewedKeys]         = useState<Set<string>>(new Set());
+
+  const reviewKey = (orderId: string, productId: string) => `${orderId}:${productId}`;
+
+  // Hydrate what this customer has already rated, so the state survives a reload.
+  useEffect(() => {
+    if (!currentUser) return;
+    let cancelled = false;
+    mutations.loadMyReviews()
+      .then(reviews => {
+        if (cancelled) return;
+        setReviewedKeys(new Set(reviews.map(r => reviewKey(r.orderId, r.productId))));
+      })
+      .catch(() => { /* non-fatal: the Rate button just stays visible */ });
+    return () => { cancelled = true; };
+  }, [currentUser?.id]);
+
+  const unratedItems = (order: Order) =>
+    order.items.filter(i => !reviewedKeys.has(reviewKey(order.id, i.productId)));
+
+  const openReview = (order: Order) => {
+    const pending = unratedItems(order);
+    setReviewOrder(order);
+    setReviewProductId(pending[0]?.productId ?? '');
+    setReviewRating(0);
+    setReviewText('');
+    setReviewError('');
+  };
 
   const handleSubmitReview = async () => {
-    if (!reviewOrder || reviewRating === 0) return;
+    if (!reviewOrder || !reviewProductId || reviewRating === 0) return;
     setSubmittingReview(true);
+    setReviewError('');
     try {
-      const firstItem = reviewOrder.items[0];
       await mutations.createReview({
         orderId:    reviewOrder.id,
-        productId:  firstItem?.productId ?? '',
-        storeId:    reviewOrder.storeId,
+        productId:  reviewProductId,
         rating:     reviewRating,
         reviewText: reviewText.trim(),
       });
-      setReviewedOrders(prev => new Set([...prev, reviewOrder.id]));
-      setReviewOrder(null);
-      setReviewRating(0);
-      setReviewText('');
-    } catch { /* silent */ } finally { setSubmittingReview(false); }
+      setReviewedKeys(prev => new Set(prev).add(reviewKey(reviewOrder.id, reviewProductId)));
+
+      // Multi-product order: roll straight on to the next unrated product.
+      const next = reviewOrder.items.find(
+        i => i.productId !== reviewProductId &&
+             !reviewedKeys.has(reviewKey(reviewOrder.id, i.productId)),
+      );
+      if (next) {
+        setReviewProductId(next.productId);
+        setReviewRating(0);
+        setReviewText('');
+      } else {
+        setReviewOrder(null);
+      }
+    } catch (e) {
+      setReviewError((e as Error).message || 'Could not save your review. Please try again.');
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   const myOrders = orders.filter(o => o.customerId === currentUser?.id);
@@ -169,9 +224,7 @@ export const CustomerOrders: React.FC = () => {
                     <div className="flex items-center gap-3 mb-4">
                       <div className="flex -space-x-2">
                         {order.items.slice(0, 3).map((item, i) => (
-                          <div key={i} className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.productColor} flex items-center justify-center text-2xl border-2 border-white`}>
-                            {item.productIcon}
-                          </div>
+                          <ProductImage key={i} product={itemVisual(item)} emojiClass="text-2xl" className="w-12 h-12 rounded-xl border-2 border-white" />
                         ))}
                       </div>
                       <div>
@@ -213,19 +266,22 @@ export const CustomerOrders: React.FC = () => {
                         <MapPin className="h-3 w-3" /> {order.address}, {order.city}
                       </p>
                       <div className="flex items-center gap-2">
-                        {order.status === 'delivered' && !reviewedOrders.has(order.id) && (
-                          <button
-                            onClick={() => { setReviewOrder(order); setReviewRating(0); setReviewText(''); }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition-colors"
-                          >
-                            <Star className="h-3.5 w-3.5" />
-                            Rate
-                          </button>
-                        )}
-                        {order.status === 'delivered' && reviewedOrders.has(order.id) && (
-                          <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium px-2">
-                            <Star className="h-3 w-3 fill-emerald-500" /> Reviewed
-                          </span>
+                        {order.status === 'delivered' && (
+                          unratedItems(order).length > 0 ? (
+                            <button
+                              onClick={() => openReview(order)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition-colors"
+                            >
+                              <Star className="h-3.5 w-3.5" />
+                              {order.items.length > 1
+                                ? `Rate (${unratedItems(order).length} left)`
+                                : 'Rate'}
+                            </button>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium px-2">
+                              <Star className="h-3 w-3 fill-emerald-500" /> Reviewed
+                            </span>
+                          )
                         )}
                         {(order.status === 'delivered' || order.paymentStatus === 'paid') && (
                           <button
@@ -396,9 +452,7 @@ export const CustomerOrders: React.FC = () => {
               {selectedOrder.items.map((item, i) => (
                 <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${item.productColor} flex items-center justify-center text-xl`}>
-                      {item.productIcon}
-                    </div>
+                    <ProductImage product={itemVisual(item)} emojiClass="text-lg" className="w-10 h-10 rounded-lg" />
                     <div>
                       <p className="text-sm font-medium">{item.productName}</p>
                       <p className="text-xs text-slate-500">Qty: {item.quantity}</p>
@@ -436,14 +490,58 @@ export const CustomerOrders: React.FC = () => {
         )}
       </Modal>
 
-      {/* Review Modal */}
+      {/* Review Modal — one product at a time */}
       {reviewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <h3 className="font-bold text-slate-900 text-lg mb-1">Rate Your Order</h3>
+            <h3 className="font-bold text-slate-900 text-lg mb-1">Rate Your Purchase</h3>
             <p className="text-sm text-slate-500 mb-4">
-              Order #{reviewOrder.id} · {reviewOrder.storeName}
+              Order #{reviewOrder.id.toUpperCase()} · {reviewOrder.storeName}
             </p>
+
+            {/* Product picker — only when the order has more than one product */}
+            {reviewOrder.items.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
+                {reviewOrder.items.map(item => {
+                  const done = reviewedKeys.has(reviewKey(reviewOrder.id, item.productId));
+                  const active = item.productId === reviewProductId;
+                  return (
+                    <button
+                      key={item.productId}
+                      onClick={() => {
+                        if (done) return;
+                        setReviewProductId(item.productId);
+                        setReviewRating(0);
+                        setReviewText('');
+                        setReviewError('');
+                      }}
+                      disabled={done}
+                      title={item.productName}
+                      className={clsx(
+                        'relative w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center text-xl border-2 transition-all',
+                        productPhoto(itemVisual(item)) ? 'bg-white' : `bg-gradient-to-br ${item.productColor}`,
+                        active ? 'border-brand-500' : 'border-transparent',
+                        done && 'opacity-40 cursor-not-allowed',
+                      )}
+                    >
+                      {productPhoto(itemVisual(item))
+                        ? <img src={productPhoto(itemVisual(item))} alt={item.productName} className="w-full h-full object-cover" />
+                        : item.productIcon}
+                      {done && (
+                        <span className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5">
+                          <CheckCircle className="h-3 w-3" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <p className="text-sm font-medium text-slate-800 text-center mb-3 truncate">
+              {reviewOrder.items.find(i => i.productId === reviewProductId)?.productName}
+            </p>
+
             {/* Stars */}
             <div className="flex gap-2 justify-center mb-4">
               {[1, 2, 3, 4, 5].map(star => (
@@ -468,14 +566,21 @@ export const CustomerOrders: React.FC = () => {
               </p>
             )}
             <textarea
-              className="input resize-none mb-4"
+              className="input resize-none mb-2"
               rows={3}
               placeholder="Tell us about your experience (optional)…"
               value={reviewText}
               onChange={e => setReviewText(e.target.value)}
             />
-            <div className="flex gap-3">
-              <button onClick={() => setReviewOrder(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
+            {reviewError && (
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">
+                {reviewError}
+              </p>
+            )}
+            <div className="flex gap-3 mt-2">
+              <button onClick={() => setReviewOrder(null)} className="btn-secondary flex-1 justify-center">
+                {unratedItems(reviewOrder).length < reviewOrder.items.length ? 'Done' : 'Cancel'}
+              </button>
               <button
                 onClick={handleSubmitReview}
                 disabled={reviewRating === 0 || submittingReview}

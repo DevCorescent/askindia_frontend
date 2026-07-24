@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, AlertCircle, Info, Store, TrendingUp, Shield, Award } from 'lucide-react';
 import { AskIndiaLogo } from '../../components/AskIndiaLogo';
 import { useAppStore } from '../../store/useAppStore';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { authService, mutations } from '../../lib/dataService';
+import { RegistrationShell } from './RegistrationShell';
 import clsx from 'clsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -298,6 +299,7 @@ export const RegisterStoreOwner: React.FC = () => {
         const signInResult = await authService.signIn(data.email, data.password);
         if (signInResult.success && signInResult.user) {
           setCurrentUser(signInResult.user);
+          useAppStore.getState().trackActivity('register', { role: 'store_owner' });
           await loadFromSupabase(signInResult.user.id, 'store_owner', signInResult.user.storeId ?? null);
         }
       }
@@ -385,49 +387,23 @@ export const RegisterStoreOwner: React.FC = () => {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Top nav */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <AskIndiaLogo size={30} showText={true} textClass="text-base" />
-          <span className="text-slate-300 mx-1">|</span>
-          <span className="text-sm text-slate-500">Store Owner Registration</span>
-        </div>
-        <Link to="/login" className="text-sm text-brand-600 font-medium hover:text-brand-700">
-          Already registered? Sign in
-        </Link>
-      </header>
-
-      <div className="max-w-2xl mx-auto px-4 py-10">
-        {/* Step progress */}
-        <div className="flex items-center mb-10">
-          {STEPS.map((s, i) => (
-            <React.Fragment key={s.num}>
-              <div className="flex flex-col items-center">
-                <div className={clsx(
-                  'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all',
-                  step > s.num ? 'bg-emerald-600 border-emerald-600 text-white'
-                    : step === s.num ? 'bg-brand-600 border-brand-600 text-white'
-                    : 'bg-white border-slate-300 text-slate-400'
-                )}>
-                  {step > s.num ? '✓' : s.num}
-                </div>
-                <span className={clsx(
-                  'text-xs mt-1 font-medium hidden sm:block',
-                  step === s.num ? 'text-brand-600' : step > s.num ? 'text-emerald-600' : 'text-slate-400'
-                )}>
-                  {s.label}
-                </span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div className={clsx('flex-1 h-0.5 mx-1 mb-4', step > s.num ? 'bg-emerald-500' : 'bg-slate-200')} />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-
-        {/* Form card */}
-        <div className="card p-8 animate-fade-in">
+    <RegistrationShell
+      accent="brand"
+      roleLabel="Store Owner Registration"
+      panelIcon={<Store className="h-7 w-7 text-white" />}
+      heading="Open Your Store on AskIndia"
+      subtitle="Launch a branded storefront and start selling to lakhs of customers across India."
+      benefits={[
+        { icon: <Store className="h-5 w-5" />, title: 'Your Own Storefront', desc: 'A branded store at yourname.askindia.shop' },
+        { icon: <TrendingUp className="h-5 w-5" />, title: 'Earn Commissions', desc: 'Sell platform products and your own catalog' },
+        { icon: <Shield className="h-5 w-5" />, title: 'Secure Payouts', desc: 'Fast, guaranteed settlements to your bank' },
+        { icon: <Award className="h-5 w-5" />, title: 'Verified Seller Badge', desc: 'Build customer trust with KYC verification' },
+      ]}
+      steps={STEPS}
+      currentStep={step}
+    >
+      {/* Form card */}
+      <div className="card p-8 animate-fade-in">
 
           {/* ── Step 1: Personal Info ─────────────────────────────────── */}
           {step === 1 && (
@@ -858,10 +834,9 @@ export const RegisterStoreOwner: React.FC = () => {
           </div>
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-6">
-          By registering, you agree to comply with AskIndia's seller policies and applicable Indian laws.
-        </p>
-      </div>
-    </div>
+      <p className="text-center text-xs text-slate-400 mt-6">
+        By registering, you agree to comply with AskIndia's seller policies and applicable Indian laws.
+      </p>
+    </RegistrationShell>
   );
 };

@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import clsx from 'clsx';
-import { Search, Plus, Edit3, Trash2, UserX, UserCheck, Eye, Shield } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, UserX, UserCheck, Eye, Shield, Loader2 } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { Modal } from '../../components/ui/Modal';
 import { useAppStore } from '../../store/useAppStore';
-import type { RegisteredUser } from '../../store/useAppStore';
-import type { UserRole } from '../../types';
+import { dataLoaders, mutations, authService } from '../../lib/dataService';
+import { toast } from '../../components/ui/Toast';
+import type { User, UserRole } from '../../types';
 import { formatDate } from '../../data/mockData';
 
 const ADMIN_EMAIL = 'admin@askindia.shop';
@@ -16,6 +17,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   service_provider: 'Service Provider',
   customer: 'Customer',
   agent: 'Agent',
+  delivery_partner: 'Delivery Partner',
 };
 
 const ROLE_BADGE: Record<UserRole, string> = {
@@ -24,6 +26,7 @@ const ROLE_BADGE: Record<UserRole, string> = {
   service_provider: 'bg-violet-100 text-violet-700',
   customer: 'bg-sky-100 text-sky-700',
   agent: 'bg-orange-100 text-orange-700',
+  delivery_partner: 'bg-indigo-100 text-indigo-700',
 };
 
 const ROLE_FILTERS: { value: string; label: string }[] = [
@@ -33,6 +36,7 @@ const ROLE_FILTERS: { value: string; label: string }[] = [
   { value: 'service_provider', label: 'Service Provider' },
   { value: 'customer', label: 'Customer' },
   { value: 'agent', label: 'Agent' },
+  { value: 'delivery_partner', label: 'Delivery Partner' },
 ];
 
 const defaultForm = {
@@ -46,40 +50,48 @@ const defaultForm = {
 };
 
 export const AdminUsers: React.FC = () => {
-  const {
-    registeredUsers,
-    suspendedUsers,
-    userActivities,
-    adminCreateUser,
-    adminUpdateUser,
-    adminDeleteUser,
-    adminToggleSuspend,
-  } = useAppStore();
+  const { suspendedUsers, userActivities, adminToggleSuspend } = useAppStore();
 
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
-  const [editUser, setEditUser] = useState<RegisteredUser | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [editUser, setEditUser] = useState<User | null>(null);
   const [form, setForm] = useState({ ...defaultForm });
   const [formError, setFormError] = useState('');
   const [showActivityFor, setShowActivityFor] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Load real user profiles from the backend
+  const refresh = useCallback(async () => {
+    try {
+      const data = await dataLoaders.loadAllUsers();
+      setUsers(data);
+    } catch {
+      toast.error('Could not load users. Please retry.');
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh().finally(() => setLoading(false));
+  }, [refresh]);
 
   // Stats
-  const totalUsers = registeredUsers.length;
-  const storeOwners = registeredUsers.filter(u => u.role === 'store_owner').length;
-  const serviceProviders = registeredUsers.filter(u => u.role === 'service_provider').length;
-  const customers = registeredUsers.filter(u => u.role === 'customer').length;
+  const totalUsers = users.length;
+  const storeOwners = users.filter(u => u.role === 'store_owner').length;
+  const serviceProviders = users.filter(u => u.role === 'service_provider').length;
+  const customers = users.filter(u => u.role === 'customer').length;
 
   // Filtered list
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return registeredUsers.filter(u => {
+    return users.filter(u => {
       const matchRole = roleFilter === 'all' || u.role === roleFilter;
       const matchSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
       return matchRole && matchSearch;
     });
-  }, [registeredUsers, roleFilter, search]);
+  }, [users, roleFilter, search]);
 
   // Last activity per user
   const lastActivity = useMemo(() => {
@@ -100,32 +112,34 @@ export const AdminUsers: React.FC = () => {
     setCreateOpen(true);
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
       setFormError('Name, email and password are required.');
       return;
     }
-    const result = adminCreateUser({
+    setBusy(true); setFormError('');
+    const result = await authService.signUp({
       name: form.name.trim(),
       email: form.email.trim(),
       phone: form.phone.trim() || undefined,
       city: form.city.trim() || undefined,
       state: form.state.trim() || undefined,
       role: form.role,
-      passwordHash: form.password,
+      password: form.password,
     });
+    setBusy(false);
     if (!result.success) {
       setFormError(result.error ?? 'Failed to create user.');
       return;
     }
     setCreateOpen(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    await refresh();
+    toast.success(`${ROLE_LABELS[form.role]} "${form.name.trim()}" created`);
   };
 
   // ── Edit ──────────────────────────────────────────────────────────────────
 
-  const openEdit = (user: RegisteredUser) => {
+  const openEdit = (user: User) => {
     setEditUser(user);
     setForm({
       name: user.name,
@@ -140,36 +154,48 @@ export const AdminUsers: React.FC = () => {
     setShowActivityFor(null);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editUser) return;
-    if (!form.name.trim() || !form.email.trim()) {
-      setFormError('Name and email are required.');
+    if (!form.name.trim()) {
+      setFormError('Name is required.');
       return;
     }
-    adminUpdateUser(editUser.id, {
-      name: form.name.trim(),
-      email: form.email.trim(),
-      phone: form.phone.trim() || undefined,
-      city: form.city.trim() || undefined,
-      state: form.state.trim() || undefined,
-      role: form.role,
-    });
-    setEditUser(null);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setBusy(true); setFormError('');
+    try {
+      await mutations.adminUpdateUser(editUser.id, {
+        name: form.name.trim(),
+        city: form.city.trim() || undefined,
+        state: form.state.trim() || undefined,
+        role: form.role,
+      });
+      setEditUser(null);
+      await refresh();
+      toast.success('User updated');
+    } catch (e) {
+      setFormError((e as Error).message || 'Failed to update user.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   // ── Delete / Suspend ──────────────────────────────────────────────────────
 
-  const handleDelete = (user: RegisteredUser) => {
+  const handleDelete = async (user: User) => {
     if (!confirm(`Delete user "${user.name}"? This cannot be undone.`)) return;
-    adminDeleteUser(user.id);
+    try {
+      await mutations.adminDeleteUser(user.id);
+      await refresh();
+      toast.success(`User "${user.name}" deleted`);
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed to delete user.');
+    }
   };
 
-  const handleToggleSuspend = (user: RegisteredUser) => {
+  const handleToggleSuspend = (user: User) => {
     const isSuspended = suspendedUsers.includes(user.id);
     if (!confirm(`${isSuspended ? 'Unsuspend' : 'Suspend'} user "${user.name}"?`)) return;
     adminToggleSuspend(user.id);
+    toast.success(isSuspended ? `${user.name} unsuspended` : `${user.name} suspended`);
   };
 
   // ── Activity for edit modal ───────────────────────────────────────────────
@@ -184,7 +210,7 @@ export const AdminUsers: React.FC = () => {
 
   // ── Shared form fields ────────────────────────────────────────────────────
 
-  const renderFormFields = (includePassword: boolean) => (
+  const renderFormFields = (includePassword: boolean, emailEditable = true) => (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -203,10 +229,12 @@ export const AdminUsers: React.FC = () => {
             Email <span className="text-red-500">*</span>
           </label>
           <input
-            className="input w-full"
+            className="input w-full disabled:bg-slate-100 disabled:text-slate-400"
             type="email"
             placeholder="jane@example.com"
             value={form.email}
+            disabled={!emailEditable}
+            title={emailEditable ? undefined : 'Email cannot be changed'}
             onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
           />
         </div>
@@ -274,13 +302,6 @@ export const AdminUsers: React.FC = () => {
     <AppLayout title="User Management">
       <div className="space-y-5">
 
-        {/* Success flash */}
-        {saved && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium px-4 py-3 rounded-xl">
-            Changes saved successfully.
-          </div>
-        )}
-
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -338,7 +359,11 @@ export const AdminUsers: React.FC = () => {
 
         {/* Users table */}
         <div className="card overflow-hidden">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="py-16 flex items-center justify-center gap-2 text-slate-400">
+              <Loader2 className="h-5 w-5 animate-spin" /> Loading users…
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
               <Shield className="h-10 w-10 mx-auto mb-3 text-slate-300" />
               <p className="font-semibold text-slate-600">No users found</p>
@@ -462,8 +487,8 @@ export const AdminUsers: React.FC = () => {
           <button onClick={() => setCreateOpen(false)} className="btn-secondary flex-1 justify-center">
             Cancel
           </button>
-          <button onClick={handleCreate} className="btn-primary flex-1 justify-center">
-            <Plus className="h-4 w-4" /> Create User
+          <button onClick={handleCreate} disabled={busy} className="btn-primary flex-1 justify-center disabled:opacity-60">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Create User
           </button>
         </div>
       </Modal>
@@ -477,7 +502,7 @@ export const AdminUsers: React.FC = () => {
       >
         {editUser && (
           <div className="space-y-5">
-            {renderFormFields(false)}
+            {renderFormFields(false, false)}
 
             {/* View Activity toggle */}
             <div>
@@ -524,8 +549,8 @@ export const AdminUsers: React.FC = () => {
               <button onClick={() => setEditUser(null)} className="btn-secondary flex-1 justify-center">
                 Cancel
               </button>
-              <button onClick={handleSaveEdit} className="btn-primary flex-1 justify-center">
-                Save Changes
+              <button onClick={handleSaveEdit} disabled={busy} className="btn-primary flex-1 justify-center disabled:opacity-60">
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />} Save Changes
               </button>
             </div>
           </div>

@@ -633,8 +633,8 @@ const DEFAULT_HOMEPAGE_CONFIG: HomepageConfig = {
   showBrandLogos: true,
   brandLogos: DEFAULT_BRAND_LOGOS,
   showNewsletter: true,
-  newsletterTitle: 'Get 20% Off Your First Order',
-  newsletterSubtitle: 'Subscribe for exclusive deals, new arrivals & festive offers',
+  newsletterTitle: 'Stay in the Loop',
+  newsletterSubtitle: 'Subscribe for new arrivals, festive offers & the latest updates',
   showTrendingSection: true,
   showBestDeals: true,
   showCollectionList: true,
@@ -645,9 +645,12 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       currentUser: null,
       registeredUsers: [adminSeed],
-      products: [],
+      // Demo-seed fallback: shown until the backend responds. When the backend
+      // loads successfully these are overwritten; if it's unreachable (e.g. API
+      // server down in local dev) the storefront still has data instead of being empty.
+      products: demoProducts,
       stores: [],
-      services: [],
+      services: demoServices,
       orders: [],
       serviceOrders: [],
       withdrawalRequests: [],
@@ -696,7 +699,10 @@ export const useAppStore = create<AppState>()(
         return { success: true, userId: newUser.id };
       },
 
-      logout: () => set({ currentUser: null, cart: [] }),
+      logout: () => {
+        get().trackActivity('logout');
+        set({ currentUser: null, cart: [] });
+      },
 
       // ── Supabase integration ─────────────────────────────────────────────────
 
@@ -1050,6 +1056,10 @@ export const useAppStore = create<AppState>()(
             : s.agents;
           return { orders: [newOrder, ...s.orders], agents };
         });
+        get().trackActivity('order_placed', {
+          orderId: newOrder.id, total: newOrder.total,
+          storeName: newOrder.storeName ?? '', items: newOrder.items.length,
+        });
       },
 
       updateOrder: (id, patch) => {
@@ -1099,6 +1109,9 @@ export const useAppStore = create<AppState>()(
               )
             : s.agents;
           return { serviceOrders: [newOrder, ...s.serviceOrders], agents };
+        });
+        get().trackActivity('service_book', {
+          serviceOrderId: newOrder.id, serviceName: newOrder.serviceTitle ?? '', amount: newOrder.amount,
         });
       },
 
@@ -1253,6 +1266,16 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
         };
         set(s => ({ userActivities: [activity, ...s.userActivities].slice(0, 500) }));
+
+        // Persist server-side for real (backend) sessions so the admin Tracking
+        // feed reflects every user's activity, not just this browser's.
+        if (isSupabaseConfigured && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUser.id)) {
+          mutations.trackActivity({
+            userId: activity.userId, userName: activity.userName, userEmail: activity.userEmail,
+            userRole: activity.userRole, event: activity.event, page: activity.page,
+            metadata: activity.metadata, sessionId: activity.sessionId,
+          }).catch(() => { /* tracking is best-effort */ });
+        }
       },
 
       snapshotAbandonedCart: () => {
@@ -1355,14 +1378,19 @@ export const useAppStore = create<AppState>()(
         } else {
           set({ cart: [...cart, { product, quantity: qty }] });
         }
+        get().trackActivity('add_to_cart', { productId: product.id, productName: product.name, quantity: qty });
       },
 
-      removeFromCart: (productId) =>
-        set(s => ({ cart: s.cart.filter(i => i.product.id !== productId) })),
+      removeFromCart: (productId) => {
+        const item = get().cart.find(i => i.product.id === productId);
+        set(s => ({ cart: s.cart.filter(i => i.product.id !== productId) }));
+        get().trackActivity('remove_from_cart', { productId, productName: item?.product.name ?? '' });
+      },
 
       updateCartQty: (productId, qty) => {
         if (qty <= 0) { get().removeFromCart(productId); return; }
         set(s => ({ cart: s.cart.map(i => i.product.id === productId ? { ...i, quantity: qty } : i) }));
+        get().trackActivity('update_cart_qty', { productId, quantity: qty });
       },
 
       clearCart: () => set({ cart: [] }),

@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'store_owner' | 'service_provider' | 'customer' | 'agent';
+export type UserRole = 'admin' | 'store_owner' | 'service_provider' | 'customer' | 'agent' | 'delivery_partner';
 
 export interface User {
   id: string;
@@ -171,6 +171,24 @@ export interface OrderItem {
   quantity: number;
   price: number;
   commission: number;
+}
+
+export interface Review {
+  id: string;
+  orderId: string;
+  productId: string;
+  customerId: string;
+  storeId?: string;
+  rating: number;
+  reviewText: string;
+  createdAt: string;
+  customerName?: string;
+}
+
+export interface ProductReviews {
+  reviews: Review[];
+  avgRating: number;
+  count: number;
 }
 
 export interface Order {

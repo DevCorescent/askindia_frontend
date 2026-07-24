@@ -2,7 +2,7 @@ import { api, setTokens, clearTokens, getAccessToken } from '../api/client';
 import type {
   User, Product, Service, Store, Order, ServiceOrder, Agent,
   WithdrawalRequest, Notification, HomepageConfig, UserActivity,
-  Role, AbandonedCart, InvoiceSettings,
+  Role, AbandonedCart, InvoiceSettings, Review, ProductReviews,
 } from '../types';
 
 function getRefreshToken(): string | null {
@@ -115,15 +115,22 @@ export const dataLoaders = {
   },
 
   async loadUserActivities(): Promise<UserActivity[]> {
-    return [];
+    try { return await api.get<UserActivity[]>('/analytics/activities'); }
+    catch { return []; }
   },
 
   async loadAbandonedCarts(): Promise<AbandonedCart[]> {
-    return [];
+    try { return await api.get<AbandonedCart[]>('/analytics/abandoned-carts'); }
+    catch { return []; }
   },
 
   async loadCustomRoles(): Promise<Role[]> {
     return [];
+  },
+
+  /** Admin: every real user profile from the backend. */
+  async loadAllUsers(): Promise<User[]> {
+    return api.get<User[]>('/admin/users');
   },
 
   async loadProviderInvoiceSettings(storeId: string): Promise<InvoiceSettings | null> {
@@ -153,6 +160,20 @@ export const mutations = {
     await api.patch(`/products/${id}`, patch);
   },
 
+  // ── Admin: users ─────────────────────────────────────────────────────────
+  async adminUpdateUser(id: string, patch: { name?: string; role?: string; city?: string; state?: string; is_active?: boolean }): Promise<void> {
+    await api.patch(`/admin/users/${id}`, patch);
+  },
+
+  async adminDeleteUser(id: string): Promise<void> {
+    await api.del(`/admin/users/${id}`);
+  },
+
+  /** Update the signed-in user's own profile; returns the fresh profile. */
+  async updateMyProfile(patch: { name?: string; phone?: string; city?: string; state?: string; avatar?: string }): Promise<User> {
+    return api.patch<User>('/auth/me', patch);
+  },
+
   async deleteProduct(id: string): Promise<void> {
     await api.del(`/products/${id}`);
   },
@@ -160,16 +181,18 @@ export const mutations = {
   // ── Reviews ────────────────────────────────────────────────────────────────
 
   async createReview(payload: {
-    orderId: string; productId: string; storeId?: string; rating: number; reviewText?: string;
+    orderId: string; productId: string; rating: number; reviewText?: string;
   }): Promise<void> {
     await api.post('/reviews', payload);
   },
 
-  async loadProductReviews(productId: string): Promise<{
-    reviews: { id: string; rating: number; reviewText: string; customerName?: string; createdAt: string }[];
-    avgRating: number; count: number;
-  }> {
+  async loadProductReviews(productId: string): Promise<ProductReviews> {
     return api.get(`/reviews/product/${productId}`);
+  },
+
+  /** Every review the signed-in customer has left — used to mark orders as rated. */
+  async loadMyReviews(): Promise<Review[]> {
+    return api.get('/reviews/mine');
   },
 
   // ── Stores ─────────────────────────────────────────────────────────────────
@@ -276,8 +299,8 @@ export const mutations = {
 
   // ── User Activities ──────────────────────────────────────────────────────────
 
-  async trackActivity(_data: Omit<UserActivity, 'id' | 'createdAt'>): Promise<void> {
-    // Activity tracking not yet implemented in backend
+  async trackActivity(data: Omit<UserActivity, 'id' | 'createdAt'>): Promise<void> {
+    await api.post('/analytics/track', data);
   },
 
   // ── Wallet ensure ─────────────────────────────────────────────────────────────
