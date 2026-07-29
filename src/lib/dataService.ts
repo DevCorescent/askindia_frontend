@@ -3,7 +3,10 @@ import type {
   User, Product, Service, Store, Order, ServiceOrder, Agent,
   WithdrawalRequest, Notification, HomepageConfig, UserActivity,
   Role, AbandonedCart, InvoiceSettings, Review, ProductReviews,
+  SearchResults,
 } from '../types';
+
+const EMPTY_SEARCH_RESULTS: SearchResults = { products: [], services: [], stores: [] };
 
 function getRefreshToken(): string | null {
   try { return localStorage.getItem('ai_refresh'); } catch { return null; }
@@ -131,6 +134,26 @@ export const dataLoaders = {
   /** Admin: every real user profile from the backend. */
   async loadAllUsers(): Promise<User[]> {
     return api.get<User[]>('/admin/users');
+  },
+
+  /**
+   * Global catalogue search — products, services and stores in one call.
+   * Public endpoint (no auth required), so guests on the landing page can use it.
+   * Throws on network/HTTP failure so callers can surface a retryable error.
+   */
+  async searchCatalogue(query: string, city?: string): Promise<SearchResults> {
+    const q = query.trim();
+    if (!q) return EMPTY_SEARCH_RESULTS;
+
+    const params = new URLSearchParams({ q });
+    if (city) params.set('city', city);
+
+    const data = await api.get<Partial<SearchResults> | null>(`/search?${params.toString()}`);
+    return {
+      products: data?.products ?? [],
+      services: data?.services ?? [],
+      stores:   data?.stores   ?? [],
+    };
   },
 
   async loadProviderInvoiceSettings(storeId: string): Promise<InvoiceSettings | null> {

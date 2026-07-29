@@ -434,3 +434,52 @@ export interface InvoiceSettings {
   termsAndConditions?: string;
   signatory?: string;       // Authorized signatory name
 }
+
+// ── Global Search ────────────────────────────────────────────────────────────
+// Shapes returned by `GET /search?q=…&city=…`. These are deliberately lighter
+// than Product/Service/Store — the endpoint returns only what a result card
+// needs, in the DB's snake_case with numeric columns serialised as strings.
+
+export interface SearchHitProduct {
+  id: string;
+  name: string;
+  category: string;
+  price: string | number;
+  mrp: string | number;
+  image_color?: string | null;
+  image_icon?: string | null;
+  thumbnail?: string | null;
+  featured?: boolean;
+  type: 'product';
+}
+
+export interface SearchHitService {
+  id: string;
+  name: string;
+  category: string;
+  price: string | number;
+  price_type?: string | null;
+  image_color?: string | null;
+  image_icon?: string | null;
+  thumbnail?: string | null;
+  featured?: boolean;
+  rating?: string | number | null;
+  type: 'service';
+}
+
+export interface SearchHitStore {
+  id: string;
+  name: string;
+  city: string;
+  logo?: string | null;
+  theme_color?: string | null;
+  store_type?: string | null;
+  total_sales?: string | number | null;
+  type: 'store';
+}
+
+export interface SearchResults {
+  products: SearchHitProduct[];
+  services: SearchHitService[];
+  stores: SearchHitStore[];
+}

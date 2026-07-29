@@ -60,6 +60,7 @@ const ProductDetail      = lazy(() => import('./pages/customer/ProductDetail').t
 const ServiceDetail      = lazy(() => import('./pages/customer/ServiceDetail').then(m => ({ default: m.ServiceDetail })));
 const StoreStorefront    = lazy(() => import('./pages/customer/StoreStorefront').then(m => ({ default: m.StoreStorefront })));
 const StoresListing      = lazy(() => import('./pages/customer/StoresListing').then(m => ({ default: m.StoresListing })));
+const SearchResults      = lazy(() => import('./pages/customer/SearchResults').then(m => ({ default: m.SearchResults })));
 
 // Agent
 const AgentDashboard = lazy(() => import('./pages/agent/AgentDashboard').then(m => ({ default: m.AgentDashboard })));
@@ -122,6 +123,8 @@ export default function App() {
             <Route path="/register/service-provider" element={<RegisterServiceProvider />} />
             {/* Customer self-signup removed — shoppers just browse & sign in */}
             <Route path="/register/customer"       element={<Navigate to="/login" replace />} />
+            {/* Global catalogue search — public, so guests can search from the landing page */}
+            <Route path="/search"                  element={<SearchResults />} />
 
             {/* ── Admin ─────────────────────────────────────────────────────── */}
             <Route path="/admin"           element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />

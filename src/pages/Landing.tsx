@@ -1,15 +1,14 @@
-import React, { useState, useMemo, useCallback, useRef } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   MapPin,
   Search,
   ChevronDown,
+  CheckCircle,
   ArrowRight,
-  Star,
   ShoppingBag,
   Store,
   Briefcase,
-  CheckCircle,
   Truck,
   Shield,
   Headphones,
@@ -21,7 +20,6 @@ import {
   Zap,
   TrendingUp,
   Award,
-  Heart,
   Flame,
   Home,
   LayoutGrid,
@@ -46,7 +44,9 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { StoreLogo } from "../components/ui/StoreLogo";
-import { useTracking } from "../hooks/useTracking";
+import { ProductCard } from "../components/ui/ProductCard";
+import { ServiceCard } from "../components/ui/ServiceCard";
+import { toast } from "../components/ui/Toast";
 import {
   PRODUCT_CATEGORIES,
   SERVICE_CATEGORIES,
@@ -124,23 +124,6 @@ const TRUST_BADGES = [
 ];
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
-const getRating = (id: string) =>
-  (
-    3.8 +
-    (id.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 12) / 10
-  ).toFixed(1);
-const getReviews = (id: string) =>
-  100 + (id.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 1900);
-const AVATAR_COLORS = [
-  "bg-blue-500",
-  "bg-violet-500",
-  "bg-emerald-600",
-  "bg-amber-500",
-  "bg-rose-500",
-  "bg-cyan-600",
-  "bg-indigo-500",
-];
-
 /* Line-icon set for product categories (sample — used in "Shop by Category") */
 const CATEGORY_ICONS: Record<
   string,
@@ -217,9 +200,6 @@ const CatIcon: React.FC<{
   const ic = CATEGORY_ICONS[id];
   return ic ? <ic.Icon className={className} /> : <span>{fallback}</span>;
 };
-const avatarColor = (name: string) =>
-  AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
-
 /* ── Hero Section ─────────────────────────────────────────────────────────── */
 const HERO_CHIPS: { label: string; catId: string | null }[] = [
   { label: "Electronics", catId: "c1" },
@@ -294,223 +274,6 @@ const HeroSection: React.FC<{
     </div>
   </section>
 );
-
-/* ── Product Card ─────────────────────────────────────────────────────────── */
-const ProductCard: React.FC<{
-  product: Product;
-  available: boolean;
-  added: boolean;
-  wishlisted: boolean;
-  onAdd: (e: React.MouseEvent) => void;
-  onClick: () => void;
-  onWish: (e: React.MouseEvent) => void;
-}> = ({ product, available, added, wishlisted, onAdd, onClick, onWish }) => {
-  const disc =
-    product.mrp > product.price
-      ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
-      : 0;
-  return (
-    <div
-      onClick={onClick}
-      className={clsx(
-        "bg-white rounded-2xl border border-slate-100/70 shadow-soft overflow-hidden hover:-translate-y-1 transition-all duration-200 group cursor-pointer",
-        !available && "opacity-60",
-      )}
-    >
-      <div
-        className={clsx(
-          "relative h-40 sm:h-44 bg-gradient-to-br flex items-center justify-center",
-          product.imageColor,
-        )}
-      >
-        <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform duration-300">
-          {product.imageIcon}
-        </span>
-        <button
-          onClick={onWish}
-          className={clsx(
-            "absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm",
-            wishlisted
-              ? "bg-red-500 opacity-100"
-              : "bg-white/90 opacity-0 group-hover:opacity-100",
-          )}
-        >
-          <Heart
-            className={clsx(
-              "h-3.5 w-3.5",
-              wishlisted ? "fill-white text-white" : "text-slate-500",
-            )}
-          />
-        </button>
-        {disc > 0 && available && (
-          <span className="absolute top-2.5 left-2.5 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
-            -{disc}%
-          </span>
-        )}
-        {product.featured && available && !disc && (
-          <span className="absolute top-2.5 left-2.5 bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded shadow">
-            ⭐ Top Pick
-          </span>
-        )}
-        {!available && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-              Out of Stock
-            </span>
-          </div>
-        )}
-      </div>
-      <div className="p-3 sm:p-3.5">
-        {product.brand && (
-          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-0.5 truncate">
-            {product.brand}
-          </p>
-        )}
-        <p className="text-base font-semibold text-slate-800 leading-snug line-clamp-2 mb-2 group-hover:text-accent-600 transition-colors min-h-[2.75rem]">
-          {product.name}
-        </p>
-        <div className="flex items-center gap-1.5 mb-2">
-          <div className="flex items-center gap-0.5 bg-emerald-500 rounded px-1.5 py-0.5">
-            <span className="text-[10px] font-bold text-white leading-none">
-              {getRating(product.id)}
-            </span>
-            <Star className="h-2.5 w-2.5 fill-white text-white" />
-          </div>
-          <span className="text-[10px] text-slate-400">
-            ({getReviews(product.id).toLocaleString()})
-          </span>
-        </div>
-        <div className="flex items-baseline gap-1.5 flex-wrap mb-3">
-          <span className="text-base sm:text-lg font-bold text-slate-900">
-            {formatCurrency(product.price)}
-          </span>
-          {product.mrp > product.price && (
-            <>
-              <span className="text-xs text-slate-400 line-through">
-                {formatCurrency(product.mrp)}
-              </span>
-              <span className="text-xs font-bold text-emerald-600">
-                {disc}% off
-              </span>
-            </>
-          )}
-        </div>
-        <button
-          onClick={onAdd}
-          disabled={!available}
-          className={clsx(
-            "w-full text-xs font-bold py-2.5 rounded-xl transition-all",
-            added
-              ? "bg-emerald-500 text-white shadow-sm"
-              : available
-                ? "bg-accent-500 text-white hover:bg-accent-600 shadow-sm hover:shadow-md active:scale-95"
-                : "bg-slate-100 text-slate-400 cursor-not-allowed",
-          )}
-        >
-          {added ? "✓ Added!" : available ? "Add to Cart" : "Out of Stock"}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-/* ── Service Card ─────────────────────────────────────────────────────────── */
-const ServiceCard: React.FC<{ service: Service; onCardClick: () => void }> = ({
-  service,
-  onCardClick,
-}) => {
-  const label =
-    service.priceType === "hourly"
-      ? "/hr"
-      : service.priceType === "starting_from"
-        ? " onwards"
-        : "";
-  const initials = service.providerName
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-  return (
-    <div
-      onClick={onCardClick}
-      className="bg-white rounded-2xl border border-slate-100/70 shadow-soft overflow-hidden hover:-translate-y-1 transition-all duration-200 cursor-pointer group"
-    >
-      <div
-        className={clsx(
-          "h-32 bg-gradient-to-br flex items-center justify-center relative",
-          service.imageColor,
-        )}
-      >
-        <span className="text-4xl group-hover:scale-110 transition-transform duration-300">
-          {service.imageIcon}
-        </span>
-        <span className="absolute top-2.5 left-2.5 bg-white/90 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-lg shadow-sm">
-          {service.category}
-        </span>
-        {service.featured && (
-          <span className="absolute top-2.5 right-2.5 bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
-            ⭐ Top Rated
-          </span>
-        )}
-      </div>
-      <div className="p-3 sm:p-3.5">
-        <p className="text-base font-bold text-slate-800 line-clamp-1 mb-2 group-hover:text-violet-700 transition-colors">
-          {service.title}
-        </p>
-        <div className="flex items-center gap-2 mb-2">
-          <div
-            className={clsx(
-              "w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0",
-              avatarColor(service.providerName),
-            )}
-          >
-            {initials}
-          </div>
-          <span className="text-xs text-slate-500 truncate flex-1">
-            {service.providerName}
-          </span>
-          <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full flex-shrink-0 flex items-center gap-0.5">
-            <CheckCircle className="h-2.5 w-2.5" /> PRO
-          </span>
-        </div>
-        {service.rating > 0 && (
-          <div className="flex items-center gap-1.5 mb-2">
-            <div className="flex items-center gap-0.5 bg-emerald-500 rounded px-1.5 py-0.5">
-              <span className="text-[10px] font-bold text-white leading-none">
-                {service.rating.toFixed(1)}
-              </span>
-              <Star className="h-2.5 w-2.5 fill-white text-white" />
-            </div>
-            {service.reviewCount > 0 && (
-              <span className="text-[10px] text-slate-400">
-                ({service.reviewCount.toLocaleString()})
-              </span>
-            )}
-            <span className="ml-auto text-[10px] text-slate-400">
-              {service.deliveryTime}
-            </span>
-          </div>
-        )}
-        <div className="flex items-baseline gap-1 mb-2.5">
-          <span className="text-base font-bold text-violet-700">
-            {formatCurrency(service.price)}
-          </span>
-          <span className="text-xs text-slate-400">{label}</span>
-        </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onCardClick();
-          }}
-          className="w-full text-xs font-bold py-2.5 rounded-xl bg-violet-600 text-white hover:bg-violet-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 active:scale-95"
-        >
-          Book Now <ArrowRight className="h-3.5 w-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-};
 
 /* ── Section Header ───────────────────────────────────────────────────────── */
 const SectionHeader: React.FC<{
@@ -689,8 +452,6 @@ export const Landing: React.FC = () => {
     cart,
     homepageConfig,
   } = useAppStore();
-  const { track } = useTracking();
-  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [city, setCity] = useState(currentUser?.city || "");
   const [showCityPicker, setShowCityPicker] = useState(false);
@@ -858,14 +619,32 @@ export const Landing: React.FC = () => {
     navigate("/shop/services");
   };
 
-  const handleSearch = (q: string) => {
-    setQuery(q);
-    if (searchDebounce.current) clearTimeout(searchDebounce.current);
-    if (q.trim().length >= 2)
-      searchDebounce.current = setTimeout(
-        () => track("search", { query: q.trim() }, "/"),
-        800,
-      );
+  /**
+   * Runs the global search: sends the query to the /search results page, which
+   * hits `GET /search?q=…&city=…`. Typing still narrows the sections below
+   * instantly; this is what the Search button and the Enter key trigger.
+   */
+  const submitSearch = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const q = query.trim();
+    if (!q) {
+      toast.info("Type something to search");
+      return;
+    }
+    setShowMobileSearch(false);
+    const params = new URLSearchParams({ q });
+    if (city) params.set("city", city);
+    navigate(`/search?${params.toString()}`);
+  };
+
+  // Mobile: the icon opens the bar, then acts as the Search button once open.
+  const handleMobileSearchClick = () => {
+    if (!showMobileSearch) {
+      setShowMobileSearch(true);
+      return;
+    }
+    if (query.trim()) submitSearch();
+    else setShowMobileSearch(false);
   };
 
   return (
@@ -908,9 +687,13 @@ export const Landing: React.FC = () => {
             </Link>
 
             {/* Search — dominant, with location selector inside */}
-            <div className="flex-1 hidden sm:flex max-w-3xl items-center h-12 bg-white rounded-xl border border-slate-200 shadow-soft focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-100 transition-all">
+            <form
+              onSubmit={submitSearch}
+              className="flex-1 hidden sm:flex max-w-3xl items-center h-12 bg-white rounded-xl border border-slate-200 shadow-soft focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-100 transition-all"
+            >
               {/* Location selector */}
               <button
+                type="button"
                 onClick={() => setShowCityPicker(true)}
                 className="flex items-center gap-1.5 h-full pl-4 pr-3 text-sm text-slate-600 hover:text-brand-700 border-r border-slate-200 flex-shrink-0 transition-colors rounded-l-xl"
               >
@@ -922,22 +705,29 @@ export const Landing: React.FC = () => {
               </button>
               {/* Search input */}
               <div className="flex-1 flex items-center gap-2.5 px-4">
-                <Search className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                <button
+                  type="submit"
+                  aria-label="Search"
+                  className="flex-shrink-0 text-slate-400 hover:text-accent-600 transition-colors"
+                >
+                  <Search className="h-4 w-4" />
+                </button>
                 <input
                   type="text"
                   value={query}
-                  onChange={(e) => handleSearch(e.target.value)}
+                  onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search products, stores or services..."
                   className="w-full bg-transparent text-sm placeholder:text-slate-400 focus:outline-none"
                 />
               </div>
-            </div>
+            </form>
 
             {/* Right cluster */}
             <div className="flex items-center gap-3 sm:gap-4 ml-auto flex-shrink-0">
               {/* Mobile search toggle */}
               <button
-                onClick={() => setShowMobileSearch((v) => !v)}
+                onClick={handleMobileSearchClick}
+                aria-label="Search"
                 className="sm:hidden p-2 text-slate-500 hover:text-accent-600 transition-colors"
               >
                 <Search className="h-4 w-4" />
@@ -1046,17 +836,17 @@ export const Landing: React.FC = () => {
           {/* Mobile search bar (expandable) */}
           {showMobileSearch && (
             <div className="sm:hidden pb-3">
-              <div className="relative">
+              <form onSubmit={submitSearch} className="relative">
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                 <input
                   autoFocus
                   type="text"
                   value={query}
-                  onChange={(e) => handleSearch(e.target.value)}
+                  onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search products, services..."
                   className="w-full pl-12 pr-4 py-2.5 rounded-full border border-slate-200 shadow-soft text-sm focus:outline-none focus:border-accent-400 focus:ring-4 focus:ring-accent-100 bg-white transition-all"
                 />
-              </div>
+              </form>
             </div>
           )}
         </div>
