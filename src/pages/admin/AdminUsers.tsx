@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import clsx from 'clsx';
-import { Search, Plus, Edit3, Trash2, UserX, UserCheck, Eye, Shield, Loader2 } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, UserX, UserCheck, Eye, Shield, Loader2, KeyRound } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { Modal } from '../../components/ui/Modal';
 import { useAppStore } from '../../store/useAppStore';
@@ -62,6 +62,8 @@ export const AdminUsers: React.FC = () => {
   const [formError, setFormError] = useState('');
   const [showActivityFor, setShowActivityFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resetPassOpen, setResetPassOpen] = useState(false);
+  const [newPass, setNewPass] = useState('');
 
   // Load real user profiles from the backend
   const refresh = useCallback(async () => {
@@ -152,6 +154,8 @@ export const AdminUsers: React.FC = () => {
     });
     setFormError('');
     setShowActivityFor(null);
+    setResetPassOpen(false);
+    setNewPass('');
   };
 
   const handleSaveEdit = async () => {
@@ -173,6 +177,27 @@ export const AdminUsers: React.FC = () => {
       toast.success('User updated');
     } catch (e) {
       setFormError((e as Error).message || 'Failed to update user.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── Password reset (admin override) ───────────────────────────────────────
+  // Bug 4: Admin can set a new password for an existing user.
+  const handleResetPassword = async () => {
+    if (!editUser) return;
+    if (newPass.trim().length < 6) {
+      setFormError('Password must be at least 6 characters.');
+      return;
+    }
+    setBusy(true); setFormError('');
+    try {
+      await mutations.adminResetUserPassword(editUser.id, newPass.trim());
+      setResetPassOpen(false);
+      setNewPass('');
+      toast.success(`Password updated for "${editUser.name}". They must sign in again.`);
+    } catch (e) {
+      setFormError((e as Error).message || 'Failed to update password.');
     } finally {
       setBusy(false);
     }
@@ -541,6 +566,50 @@ export const AdminUsers: React.FC = () => {
                       ))}
                     </ul>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* ── Reset Password section (Bug 4 fix) ─────────────────── */}
+            <div className="border-t border-slate-100 pt-4">
+              {!resetPassOpen ? (
+                <button
+                  onClick={() => { setResetPassOpen(true); setFormError(''); }}
+                  className="btn-secondary text-sm flex items-center gap-2"
+                >
+                  <KeyRound className="h-4 w-4" />
+                  Reset Password
+                </button>
+              ) : (
+                <div className="space-y-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <p className="text-sm font-semibold text-amber-800 flex items-center gap-2">
+                    <KeyRound className="h-4 w-4" />
+                    Set New Password
+                  </p>
+                  <input
+                    className="input w-full"
+                    type="password"
+                    placeholder="New password (min 6 characters)"
+                    value={newPass}
+                    onChange={e => setNewPass(e.target.value)}
+                  />
+                  {formError && <p className="text-xs text-red-600">{formError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setResetPassOpen(false); setNewPass(''); setFormError(''); }}
+                      className="btn-secondary text-xs flex-1 justify-center"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleResetPassword}
+                      disabled={busy || newPass.trim().length < 6}
+                      className="btn-primary text-xs flex-1 justify-center disabled:opacity-60"
+                    >
+                      {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <KeyRound className="h-3 w-3" />}
+                      Update Password
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

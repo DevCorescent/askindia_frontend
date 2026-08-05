@@ -15,6 +15,8 @@ const Landing               = lazy(() => import('./pages/Landing').then(m => ({ 
 const Login                 = lazy(() => import('./pages/auth/Login').then(m => ({ default: m.Login })));
 const RegisterStoreOwner    = lazy(() => import('./pages/auth/RegisterStoreOwner').then(m => ({ default: m.RegisterStoreOwner })));
 const RegisterServiceProvider = lazy(() => import('./pages/auth/RegisterServiceProvider').then(m => ({ default: m.RegisterServiceProvider })));
+const ForgotPassword          = lazy(() => import('./pages/auth/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
+const ResetPassword           = lazy(() => import('./pages/auth/ResetPassword').then(m => ({ default: m.ResetPassword })));
 
 // Admin
 const AdminDashboard  = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -118,6 +120,8 @@ export default function App() {
             {/* ── Public ────────────────────────────────────────────────────── */}
             <Route path="/"                        element={<Landing />} />
             <Route path="/login"                   element={<Login />} />
+            <Route path="/forgot-password"         element={<ForgotPassword />} />
+            <Route path="/reset-password"          element={<ResetPassword />} />
             <Route path="/register/store-owner"    element={<RegisterStoreOwner />} />
             <Route path="/register/service-provider" element={<RegisterServiceProvider />} />
             {/* Customer self-signup removed — shoppers just browse & sign in */}

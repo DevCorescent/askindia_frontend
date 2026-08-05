@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { statusBadge } from '../../components/ui/Badge';
 import { formatCurrency, formatDate } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
-import type { Store } from '../../types';
+import { dataLoaders } from '../../lib/dataService';
+import type { Store, User } from '../../types';
 import {
   Search, Plus, X, ShoppingBag, Briefcase, CheckCircle, XCircle,
   Eye, Store as StoreIcon, AlertTriangle, RefreshCw, ExternalLink,
@@ -85,11 +86,30 @@ export const AdminStores: React.FC = () => {
   const pendingStores = stores.filter(s => s.status === 'pending').length;
   const suspendedStores = stores.filter(s => s.status === 'suspended').length;
 
-  // Eligible owners for dropdown
+  // Real users fetched from the backend — in backend mode the Zustand
+  // `registeredUsers` only holds the admin seed, so we load the full list
+  // (store owners / service providers) here for the owner-assignment dropdown.
+  const [backendUsers, setBackendUsers] = useState<User[]>([]);
+  const loadBackendUsers = useCallback(async () => {
+    try {
+      setBackendUsers(await dataLoaders.loadAllUsers());
+    } catch {
+      // Non-fatal — the dropdown simply falls back to registeredUsers.
+    }
+  }, []);
+  useEffect(() => {
+    loadBackendUsers();
+  }, [loadBackendUsers]);
+
+  // Eligible owners for dropdown (backend users + any local mock users)
   const eligibleOwners = useMemo(() => {
     const role = form.storeType === 'product' ? 'store_owner' : 'service_provider';
-    return registeredUsers.filter(u => u.role === role);
-  }, [registeredUsers, form.storeType]);
+    const merged: Record<string, User> = {};
+    [...registeredUsers, ...backendUsers].forEach(u => {
+      if (u.role === role) merged[u.id] = u;
+    });
+    return Object.values(merged);
+  }, [registeredUsers, backendUsers, form.storeType]);
 
   // Filtered stores for current tab
   const filtered = useMemo(() => {

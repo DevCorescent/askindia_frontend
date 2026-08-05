@@ -56,6 +56,24 @@ export const authService = {
     try { return await api.get<User>('/auth/me'); }
     catch { return null; }
   },
+
+  async forgotPassword(email: string): Promise<{ success: boolean; message?: string; devResetLink?: string; error?: string }> {
+    try {
+      const data = await api.post<{ message: string; devResetLink?: string }>('/auth/forgot-password', { email });
+      return { success: true, message: data.message, devResetLink: data.devResetLink };
+    } catch (e) {
+      return { success: false, error: (e as Error).message };
+    }
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const data = await api.post<{ message: string }>('/auth/reset-password', { token, newPassword });
+      return { success: true, message: data.message };
+    } catch (e) {
+      return { success: false, error: (e as Error).message };
+    }
+  },
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -167,6 +185,11 @@ export const mutations = {
 
   async adminDeleteUser(id: string): Promise<void> {
     await api.del(`/admin/users/${id}`);
+  },
+
+  /** Admin: set a new password for an existing user (Bug 4). */
+  async adminResetUserPassword(id: string, newPassword: string): Promise<void> {
+    await api.post(`/admin/users/${id}/reset-password`, { newPassword });
   },
 
   /** Update the signed-in user's own profile; returns the fresh profile. */

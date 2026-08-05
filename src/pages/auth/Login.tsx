@@ -138,7 +138,7 @@ export const Login: React.FC = () => {
                 <label className="text-sm font-medium text-slate-700">
                   Password <span className="text-red-500">*</span>
                 </label>
-                <button type="button" className="text-xs text-brand-600 hover:text-brand-700 font-medium">
+                <button type="button" onClick={() => navigate('/forgot-password')} className="text-xs text-brand-600 hover:text-brand-700 font-medium">
                   Forgot password?
                 </button>
               </div>

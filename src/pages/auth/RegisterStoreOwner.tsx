@@ -260,47 +260,51 @@ export const RegisterStoreOwner: React.FC = () => {
       });
 
       if (signUpResult.success && signUpResult.userId) {
-        try {
-          await mutations.createStore({
-            ownerId:         signUpResult.userId,
-            ownerName,
-            name:            data.storeName,
-            slug:            data.storeSlug,
-            tagline:         data.storeTagline,
-            description:     data.storeDescription,
-            logo:            '🏪',
-            themeColor:      '#4f46e5',
-            city:            data.city,
-            state:           data.state,
-            commissionRate:  20,
-            status:          'pending',
-            storeType:       'product',
-            subdomain:       data.storeSlug,
-            contactPhone:    data.phone,
-            gstNumber:       data.noGst ? undefined : (data.gstNumber || undefined),
-            bankAccount:     data.accountNumber || undefined,
-            bankIfsc:        data.ifscCode || undefined,
-            invoiceSettings: {
-              businessName: data.legalName,
-              pan:          data.panNumber,
-              gstin:        data.noGst ? '' : data.gstNumber,
-              bankName:     data.bankName,
-              bankAccount:  data.accountNumber,
-              bankIfsc:     data.ifscCode,
-              city:         data.city,
-              state:        data.state,
-            },
-          });
-        } catch (err) {
-          console.error('[RegisterStoreOwner] Store creation failed:', err);
-          // Continue — user account was created, store can be set up from dashboard
-        }
-        // Sign the user in after successful registration
+        // Sign the user in FIRST so the access/refresh tokens are set — the
+        // store-creation request below must be authenticated.
         const signInResult = await authService.signIn(data.email, data.password);
         if (signInResult.success && signInResult.user) {
           setCurrentUser(signInResult.user);
+          let storeId: string | null = signInResult.user.storeId ?? null;
+          try {
+            storeId = await mutations.createStore({
+              ownerId:         signUpResult.userId,
+              ownerName,
+              name:            data.storeName,
+              slug:            data.storeSlug,
+              tagline:         data.storeTagline,
+              description:     data.storeDescription,
+              logo:            '🏪',
+              themeColor:      '#4f46e5',
+              city:            data.city,
+              state:           data.state,
+              commissionRate:  20,
+              status:          'pending',
+              storeType:       'product',
+              subdomain:       data.storeSlug,
+              contactPhone:    data.phone,
+              gstNumber:       data.noGst ? undefined : (data.gstNumber || undefined),
+              bankAccount:     data.accountNumber || undefined,
+              bankIfsc:        data.ifscCode || undefined,
+              invoiceSettings: {
+                businessName: data.legalName,
+                pan:          data.panNumber,
+                gstin:        data.noGst ? '' : data.gstNumber,
+                bankName:     data.bankName,
+                bankAccount:  data.accountNumber,
+                bankIfsc:     data.ifscCode,
+                city:         data.city,
+                state:        data.state,
+              },
+            });
+            // Reflect the newly created store id on the signed-in user
+            setCurrentUser({ ...signInResult.user, storeId });
+          } catch (err) {
+            console.error('[RegisterStoreOwner] Store creation failed:', err);
+            // Continue — user account was created, store can be set up from dashboard
+          }
           useAppStore.getState().trackActivity('register', { role: 'store_owner' });
-          await loadFromSupabase(signInResult.user.id, 'store_owner', signInResult.user.storeId ?? null);
+          await loadFromSupabase(signInResult.user.id, 'store_owner', storeId);
         }
       }
       setIsSubmitting(false);
