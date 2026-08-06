@@ -9,6 +9,7 @@ import { SYSTEM_ROLES } from '../data/permissions';
 import { ADMIN_USER } from '../data/mockData';
 import { dataLoaders, mutations, authService } from '../lib/dataService';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { toast } from '../components/ui/Toast';
 
 export interface RegisteredUser extends User {
   passwordHash: string;
@@ -945,7 +946,15 @@ export const useAppStore = create<AppState>()(
                 currentUser: s.currentUser?.id === data.ownerId ? { ...s.currentUser, storeId: dbId } : s.currentUser,
               }));
             })
-            .catch(err => console.error('[createStore] DB error:', err));
+            .catch(err => {
+              console.error('[createStore] DB error:', err);
+              // Drop the optimistic row when the insert fails (e.g. duplicate
+              // slug). Keeping it made the store look created until the next
+              // reload replaced `stores` with the backend list — which is the
+              // "store disappears from the Admin panel" report.
+              set(s => ({ stores: s.stores.filter(st => st.id !== tempId) }));
+              toast.error(`Could not create store: ${(err as Error).message}`);
+            });
         }
         return tempId;
       },
