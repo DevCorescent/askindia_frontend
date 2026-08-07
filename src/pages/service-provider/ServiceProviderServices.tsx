@@ -9,7 +9,7 @@ import {
   Plus, Search, Star, MapPin, Edit2, Trash2, ToggleLeft, ToggleRight, Briefcase,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { INDIAN_CITIES } from '../../data/cities';
+import { useCities } from '../../hooks/useCities';
 
 const COLOR_OPTIONS = [
   { label: 'Violet', value: 'from-violet-500 to-purple-600', preview: 'linear-gradient(135deg, #8b5cf6, #9333ea)' },
@@ -72,6 +72,7 @@ const RatingStars: React.FC<{ rating: number; reviewCount: number }> = ({ rating
 
 export const ServiceProviderServices: React.FC = () => {
   const { currentUser, services, addService, updateService, deleteService } = useAppStore();
+  const cities = useCities();
   const providerId = currentUser?.id ?? '';
 
   const [search, setSearch] = useState('');
@@ -507,7 +508,7 @@ export const ServiceProviderServices: React.FC = () => {
               )}
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {INDIAN_CITIES.map(city => (
+              {cities.map(city => (
                 <label key={city} className={clsx(
                   'flex items-center gap-1.5 p-2 rounded-lg border cursor-pointer text-xs transition-colors',
                   form.availableCities.includes(city)

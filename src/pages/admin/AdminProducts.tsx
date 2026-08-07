@@ -8,7 +8,7 @@ import type { Product, ProductSpec } from '../../types';
 import {
   Plus, Search, Edit2, Filter, X, Upload, Image, Trash2, Check,
 } from 'lucide-react';
-import { INDIAN_CITIES } from '../../data/cities';
+import { useCities } from '../../hooks/useCities';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -27,7 +27,6 @@ function getCategoryGradient(slug: string): string {
   return 'from-brand-400 to-brand-600';
 }
 
-const SUGGESTED_CITIES = INDIAN_CITIES;
 
 // ─── Reusable sub-components ─────────────────────────────────────────────────
 
@@ -717,7 +716,7 @@ const ProductPanel: React.FC<ProductPanelProps> = ({ mode, product, onClose, onS
                 {!form.nationwide && (
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
-                      {SUGGESTED_CITIES.filter(c => !form.cities.includes(c)).map(city => (
+                      {cities.filter(c => !form.cities.includes(c)).map(city => (
                         <button
                           key={city}
                           type="button"
@@ -823,6 +822,7 @@ const ProductPanel: React.FC<ProductPanelProps> = ({ mode, product, onClose, onS
 
 export const AdminProducts: React.FC = () => {
   const { products, addProduct, updateProduct, deleteProduct } = useAppStore();
+  const cities = useCities();
 
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('all');

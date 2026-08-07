@@ -8,7 +8,7 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 import { authService } from '../../lib/dataService';
 import { RegistrationShell } from './RegistrationShell';
 import clsx from 'clsx';
-import { INDIAN_CITIES } from '../../data/cities';
+import { useCities } from '../../hooks/useCities';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -115,6 +115,7 @@ const Field: React.FC<{
 export const RegisterServiceProvider: React.FC = () => {
   const navigate = useNavigate();
   const { register, isEmailTaken, setCurrentUser, loadFromSupabase } = useAppStore();
+  const cities = useCities();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<FormData>(INITIAL);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -455,7 +456,7 @@ export const RegisterServiceProvider: React.FC = () => {
                           )}
                         </p>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                          {INDIAN_CITIES.map(city => (
+                          {cities.map(city => (
                             <label key={city} className={clsx(
                               'flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors text-sm',
                               data.availableCities.includes(city)

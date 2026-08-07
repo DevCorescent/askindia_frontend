@@ -5,11 +5,12 @@ import { useAppStore } from '../../store/useAppStore';
 import { StoreLogo } from '../../components/ui/StoreLogo';
 import { Search, Store as StoreIcon, Package, Briefcase, MapPin, ExternalLink, Filter, X } from 'lucide-react';
 import clsx from 'clsx';
-import { CITIES_WITH_ALL } from '../../data/cities';
+import { useCities } from '../../hooks/useCities';
 
 export const StoresListing: React.FC = () => {
   const navigate = useNavigate();
   const { stores, products, loadingData, supabaseReady } = useAppStore();
+  const cities = useCities();
 
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'product' | 'service'>('all');
@@ -123,7 +124,7 @@ export const StoresListing: React.FC = () => {
             onChange={e => setCityFilter(e.target.value)}
             className="input max-w-[150px] text-sm"
           >
-            {CITIES_WITH_ALL.map(c => <option key={c} value={c}>{c}</option>)}
+            {['All Cities', ...cities].map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
 
