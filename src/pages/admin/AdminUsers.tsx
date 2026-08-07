@@ -8,6 +8,7 @@ import { dataLoaders, mutations, authService } from '../../lib/dataService';
 import { toast } from '../../components/ui/Toast';
 import type { User, UserRole } from '../../types';
 import { formatDate } from '../../data/mockData';
+import { MIN_PASSWORD_LENGTH } from '../../constants/auth';
 
 const ADMIN_EMAIL = 'admin@askindia.shop';
 
@@ -186,8 +187,8 @@ export const AdminUsers: React.FC = () => {
   // Bug 4: Admin can set a new password for an existing user.
   const handleResetPassword = async () => {
     if (!editUser) return;
-    if (newPass.trim().length < 6) {
-      setFormError('Password must be at least 6 characters.');
+    if (newPass.trim().length < MIN_PASSWORD_LENGTH) {
+      setFormError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
     setBusy(true); setFormError('');
@@ -310,7 +311,7 @@ export const AdminUsers: React.FC = () => {
             <input
               className="input w-full"
               type="password"
-              placeholder="Minimum 6 characters"
+              placeholder={`Minimum ${MIN_PASSWORD_LENGTH} characters`}
               value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
             />
@@ -603,7 +604,7 @@ export const AdminUsers: React.FC = () => {
                     </button>
                     <button
                       onClick={handleResetPassword}
-                      disabled={busy || newPass.trim().length < 6}
+                      disabled={busy || newPass.trim().length < MIN_PASSWORD_LENGTH}
                       className="btn-primary text-xs flex-1 justify-center disabled:opacity-60"
                     >
                       {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <KeyRound className="h-3 w-3" />}

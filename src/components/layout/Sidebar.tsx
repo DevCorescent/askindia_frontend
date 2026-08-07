@@ -97,7 +97,7 @@ export const Sidebar: React.FC = () => {
     currentUser.role === 'delivery_partner' ? 'bg-indigo-500' :
     'bg-sky-500';
 
-  const handleLogout = () => { logout(); navigate('/'); };
+  const handleLogout = async () => { await logout(); navigate('/'); };
 
   return (
     <>

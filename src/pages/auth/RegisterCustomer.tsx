@@ -5,6 +5,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { AskIndiaLogo } from '../../components/AskIndiaLogo';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { authService } from '../../lib/dataService';
+import { MIN_PASSWORD_LENGTH } from '../../constants/auth';
 import clsx from 'clsx';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -57,7 +58,7 @@ const STEPS = [
 
 function passwordStrength(pw: string): { score: number; label: string; color: string } {
   let score = 0;
-  if (pw.length >= 8) score++;
+  if (pw.length >= MIN_PASSWORD_LENGTH) score++;
   if (pw.length >= 12) score++;
   if (/[A-Z]/.test(pw)) score++;
   if (/[0-9]/.test(pw)) score++;
@@ -125,7 +126,7 @@ function validate2(f: FormData): Errors {
 function validate3(f: FormData): Errors {
   const e: Errors = {};
   if (!f.password) e.password = 'Password is required.';
-  else if (f.password.length < 8) e.password = 'Password must be at least 8 characters.';
+  else if (f.password.length < MIN_PASSWORD_LENGTH) e.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
   else if (passwordStrength(f.password).score < 2) e.password = 'Password is too weak. Add uppercase letters or numbers.';
   if (!f.confirmPassword) e.confirmPassword = 'Please confirm your password.';
   else if (f.password !== f.confirmPassword) e.confirmPassword = 'Passwords do not match.';
@@ -189,6 +190,12 @@ export const RegisterCustomer: React.FC = () => {
         phone: form.phone,
         city: form.city,
         state: form.state,
+        dateOfBirth: form.dateOfBirth,
+        gender: form.gender,
+        addressLine1: form.addressLine1.trim(),
+        addressLine2: form.addressLine2.trim(),
+        landmark: form.landmark.trim(),
+        pinCode: form.pinCode,
       });
       setIsLoading(false);
       if (result.success) {
@@ -203,7 +210,10 @@ export const RegisterCustomer: React.FC = () => {
         }
         setDone(true);
       } else {
+        // The email field lives on step 1, so send the user back to it rather
+        // than showing the error against a field they cannot see from step 3.
         setErrors({ email: result.error });
+        setStep(1);
       }
     } else {
       // Mock mode

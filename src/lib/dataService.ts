@@ -36,6 +36,12 @@ export const authService = {
     phone?: string;
     city?: string;
     state?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    landmark?: string;
+    pinCode?: string;
   }): Promise<{ success: boolean; userId?: string; error?: string }> {
     try {
       const data = await api.post<{ userId: string }>('/auth/signup', opts);
@@ -57,10 +63,10 @@ export const authService = {
     catch { return null; }
   },
 
-  async forgotPassword(email: string): Promise<{ success: boolean; message?: string; devResetLink?: string; error?: string }> {
+  async forgotPassword(email: string): Promise<{ success: boolean; message?: string; emailSent?: boolean; devResetLink?: string; error?: string }> {
     try {
-      const data = await api.post<{ message: string; devResetLink?: string }>('/auth/forgot-password', { email });
-      return { success: true, message: data.message, devResetLink: data.devResetLink };
+      const data = await api.post<{ message: string; emailSent: boolean; devResetLink?: string }>('/auth/forgot-password', { email });
+      return { success: true, message: data.message, emailSent: data.emailSent, devResetLink: data.devResetLink };
     } catch (e) {
       return { success: false, error: (e as Error).message };
     }
@@ -310,8 +316,10 @@ export const mutations = {
 
   // ── Agents ──────────────────────────────────────────────────────────────────
 
-  async createAgent(agentId: string, data: { agentCode: string; commissionRate: number; status: Agent['status'] }): Promise<void> {
-    await api.post('/agents', { id: agentId, ...data });
+  async createAgent(agentId: string, data: { agentCode?: string; commissionRate: number; status: Agent['status'] }): Promise<Agent> {
+    // `agentId` is the documented field the API keys the new row off.
+    // Omit agentCode to have the server assign the next sequential one.
+    return api.post<Agent>('/agents', { agentId, ...data });
   },
 
   async updateAgent(id: string, patch: Partial<Agent>): Promise<void> {

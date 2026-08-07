@@ -233,6 +233,7 @@ interface ProductPanelProps {
 }
 
 const ProductPanel: React.FC<ProductPanelProps> = ({ mode, product, onClose, onSubmit, onDelete }) => {
+  const cities = useCities();
   const [form, setForm] = useState<PanelFormState>(() =>
     mode === 'edit' && product ? formFromProduct(product) : emptyForm(),
   );

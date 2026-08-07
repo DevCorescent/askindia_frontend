@@ -47,7 +47,7 @@ interface AppState {
   login: (email: string, password: string) => { success: boolean; error?: string };
   register: (user: Omit<RegisteredUser, 'id' | 'createdAt'>) => { success: boolean; error?: string; userId?: string };
   isEmailTaken: (email: string) => boolean;
-  logout: () => void;
+  logout: () => Promise<void>;
 
   // Agents
   addAgent: (data: Omit<Agent, 'id' | 'createdAt' | 'totalSales' | 'totalOrders' | 'walletBalance' | 'totalEarned'> & { password: string }) => Promise<{ success: boolean; error?: string }>;
@@ -700,8 +700,12 @@ export const useAppStore = create<AppState>()(
         return { success: true, userId: newUser.id };
       },
 
-      logout: () => {
+      logout: async () => {
         get().trackActivity('logout');
+        // Revoke the refresh token server-side and drop both JWTs from localStorage.
+        // Without this the tokens outlive the logout and useSupabaseInit restores the
+        // session on the next page load.
+        try { await authService.signOut(); } catch { /* best-effort — clear locally regardless */ }
         set({ currentUser: null, cart: [] });
       },
 
@@ -790,27 +794,26 @@ export const useAppStore = create<AppState>()(
             return { success: false, error: signup.error ?? 'Registration failed.' };
           }
           const agentId = signup.userId;
+          let createdAgent: Agent;
           try {
-            await mutations.createAgent(agentId, {
-              agentCode,
+            createdAgent = await mutations.createAgent(agentId, {
+              // Blank means "server assigns the next code". A client-side counter
+              // only sees the agents loaded in this session, so it collides with
+              // codes already in the database.
+              agentCode: agentData.agentCode?.trim() || undefined,
               commissionRate: agentData.commissionRate,
               status: 'pending',
             });
           } catch (err) {
             console.error('[addAgent] Failed to create agent record:', err);
+            return {
+              success: false,
+              error: (err as Error).message
+                || 'The login was created but the agent record could not be saved.',
+            };
           }
-          const newAgent: Agent = {
-            ...agentData,
-            id: agentId,
-            agentCode,
-            status: 'pending',
-            totalSales: 0,
-            totalOrders: 0,
-            walletBalance: 0,
-            totalEarned: 0,
-            createdAt: new Date().toISOString().slice(0, 10),
-          };
-          set(s => ({ agents: [...s.agents, newAgent] }));
+          // Use the server's record so the listed agent code is the real one.
+          set(s => ({ agents: [...s.agents, createdAgent] }));
           return { success: true };
         }
 

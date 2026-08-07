@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, CheckCircle, AlertCircle, Loader2, Lock } from 'lucide-react';
 import { AskIndiaLogo } from '../../components/AskIndiaLogo';
 import { authService } from '../../lib/dataService';
+import { MIN_PASSWORD_LENGTH } from '../../constants/auth';
 
 export const ResetPassword: React.FC = () => {
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ export const ResetPassword: React.FC = () => {
     e.preventDefault();
     if (!token) { setError('Missing or invalid reset token.'); return; }
     if (!password) { setError('New password is required.'); return; }
-    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+    if (password.length < MIN_PASSWORD_LENGTH) { setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`); return; }
     if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
 
     setError('');
@@ -90,7 +91,7 @@ export const ResetPassword: React.FC = () => {
                   value={password}
                   onChange={e => { setPassword(e.target.value); setError(''); }}
                   className="input pr-10"
-                  placeholder="Minimum 6 characters"
+                  placeholder={`Minimum ${MIN_PASSWORD_LENGTH} characters`}
                   autoComplete="new-password"
                 />
                 <button

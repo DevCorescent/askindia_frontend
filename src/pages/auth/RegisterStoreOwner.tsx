@@ -6,6 +6,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { authService, mutations } from '../../lib/dataService';
 import { RegistrationShell } from './RegistrationShell';
+import { MIN_PASSWORD_LENGTH } from '../../constants/auth';
 import clsx from 'clsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -98,7 +99,7 @@ const slugify = (s: string) =>
 
 const passwordStrength = (p: string) => {
   let score = 0;
-  if (p.length >= 8) score++;
+  if (p.length >= MIN_PASSWORD_LENGTH) score++;
   if (p.length >= 12) score++;
   if (/[A-Z]/.test(p)) score++;
   if (/[0-9]/.test(p)) score++;
@@ -144,6 +145,9 @@ export const RegisterStoreOwner: React.FC = () => {
   const [showAccNum, setShowAccNum] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  // Set when the account was created but the store record wasn't — the success
+  // screen has to tell the truth about that rather than showing a clean tick.
+  const [storeSetupError, setStoreSetupError] = useState('');
 
   const set_ = (field: keyof FormData, value: string | boolean) => {
     setData(d => {
@@ -226,7 +230,7 @@ export const RegisterStoreOwner: React.FC = () => {
   const validate5 = (): boolean => {
     const e: typeof errors = {};
     if (!data.password) e.password = 'Password is required';
-    else if (data.password.length < 8) e.password = 'Minimum 8 characters required';
+    else if (data.password.length < MIN_PASSWORD_LENGTH) e.password = `Minimum ${MIN_PASSWORD_LENGTH} characters required`;
     if (!data.confirmPassword) e.confirmPassword = 'Please confirm your password';
     else if (data.password !== data.confirmPassword) e.confirmPassword = 'Passwords do not match';
     if (!data.agreeTerms) e.agreeTerms = 'You must accept the Terms & Conditions';
@@ -301,7 +305,9 @@ export const RegisterStoreOwner: React.FC = () => {
             setCurrentUser({ ...signInResult.user, storeId });
           } catch (err) {
             console.error('[RegisterStoreOwner] Store creation failed:', err);
-            // Continue — user account was created, store can be set up from dashboard
+            // The account exists and the user is signed in, so don't send them back
+            // through the form — but don't claim the store was registered either.
+            setStoreSetupError((err as Error).message || 'The store could not be created.');
           }
           useAppStore.getState().trackActivity('register', { role: 'store_owner' });
           await loadFromSupabase(signInResult.user.id, 'store_owner', storeId);
@@ -309,7 +315,11 @@ export const RegisterStoreOwner: React.FC = () => {
       }
       setIsSubmitting(false);
       if (signUpResult.success) setSubmitted(true);
-      else setErrors({ email: signUpResult.error });
+      else {
+        // Email lives on step 1 — go back so the error is actually visible.
+        setErrors({ email: signUpResult.error });
+        setStep(1);
+      }
     } else {
       // Mock mode
       await new Promise(r => setTimeout(r, 1200));
@@ -353,26 +363,53 @@ export const RegisterStoreOwner: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="w-full max-w-md text-center">
-          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="h-10 w-10 text-emerald-600" />
+          <div className={clsx(
+            'w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6',
+            storeSetupError ? 'bg-amber-100' : 'bg-emerald-100',
+          )}>
+            {storeSetupError
+              ? <AlertCircle className="h-10 w-10 text-amber-600" />
+              : <CheckCircle className="h-10 w-10 text-emerald-600" />}
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Store Registration Submitted!</h2>
-          <p className="text-slate-500 mb-2">
-            Welcome, <strong>{data.firstName}</strong>! Your store <strong>{data.storeName}</strong> has been registered.
-          </p>
-          <p className="text-sm text-slate-400 mb-8">
-            Your store will be live at{' '}
-            <span className="font-mono text-brand-600">{data.storeSlug}.askindia.shop</span>{' '}
-            once approved by our team.
-          </p>
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8 text-sm text-amber-800 text-left">
-            <p className="font-semibold mb-1">⏳ Next Steps</p>
-            <ul className="list-disc pl-4 space-y-1 text-amber-700">
-              <li>Your banking details are under verification (1–2 business days)</li>
-              <li>Products from the platform catalog are now live on your store</li>
-              <li>Share your store link to start earning commissions</li>
-            </ul>
-          </div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">
+            {storeSetupError ? 'Account Created — Store Setup Incomplete' : 'Store Registration Submitted!'}
+          </h2>
+          {storeSetupError ? (
+            <>
+              <p className="text-slate-500 mb-2">
+                Welcome, <strong>{data.firstName}</strong>! Your account is ready, but{' '}
+                <strong>{data.storeName}</strong> could not be registered.
+              </p>
+              <p className="text-sm text-slate-400 mb-8">{storeSetupError}</p>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8 text-sm text-amber-800 text-left">
+                <p className="font-semibold mb-1">⚠ What to do next</p>
+                <ul className="list-disc pl-4 space-y-1 text-amber-700">
+                  <li>You're already signed in — no need to register again</li>
+                  <li>Finish setting up your store from the dashboard</li>
+                  <li>If the problem persists, contact support</li>
+                </ul>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-slate-500 mb-2">
+                Welcome, <strong>{data.firstName}</strong>! Your store <strong>{data.storeName}</strong> has been registered.
+              </p>
+              <p className="text-sm text-slate-400 mb-8">
+                Your store will be live at{' '}
+                <span className="font-mono text-brand-600">{data.storeSlug}.askindia.shop</span>{' '}
+                once approved by our team.
+              </p>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8 text-sm text-amber-800 text-left">
+                <p className="font-semibold mb-1">⏳ Next Steps</p>
+                <ul className="list-disc pl-4 space-y-1 text-amber-700">
+                  <li>Your banking details are under verification (1–2 business days)</li>
+                  <li>Products from the platform catalog are now live on your store</li>
+                  <li>Share your store link to start earning commissions</li>
+                </ul>
+              </div>
+            </>
+          )}
           <button onClick={() => navigate('/store')} className="btn-primary w-full justify-center py-3 text-base">
             Go to My Store Dashboard →
           </button>

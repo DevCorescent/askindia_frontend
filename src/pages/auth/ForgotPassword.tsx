@@ -8,7 +8,7 @@ export const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sent, setSent] = useState<{ message: string; devResetLink?: string } | null>(null);
+  const [sent, setSent] = useState<{ message: string; emailSent?: boolean; devResetLink?: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +23,7 @@ export const ForgotPassword: React.FC = () => {
     if (result.success) {
       setSent({
         message: result.message ?? 'If an account exists for that email, a password reset link has been generated.',
+        emailSent: result.emailSent,
         devResetLink: result.devResetLink,
       });
     } else {
@@ -43,8 +44,19 @@ export const ForgotPassword: React.FC = () => {
               <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
                 <CheckCircle className="h-8 w-8 text-emerald-600" />
               </div>
-              <h1 className="text-xl font-bold text-slate-900 mb-2">Check your inbox</h1>
+              <h1 className="text-xl font-bold text-slate-900 mb-2">
+                {sent.devResetLink ? 'Reset link ready' : sent.emailSent ? 'Check your inbox' : 'Request received'}
+              </h1>
               <p className="text-sm text-slate-500 mb-5">{sent.message}</p>
+              {!sent.devResetLink && !sent.emailSent && (
+                // The backend reports `emailSent: false` until a mail provider is
+                // configured — don't send people to watch an inbox nothing arrives in.
+                // This branch disappears on its own once delivery is wired up.
+                <p className="text-xs text-slate-400 mb-5">
+                  Email delivery isn't switched on yet, so the link won't reach your inbox.
+                  Please contact support to get your password reset.
+                </p>
+              )}
               {sent.devResetLink && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-800 text-left">
                   <p className="font-semibold mb-1">⚠ Development Mode</p>
@@ -67,7 +79,7 @@ export const ForgotPassword: React.FC = () => {
               </div>
               <h1 className="text-xl font-bold text-slate-900 mb-1">Forgot your password?</h1>
               <p className="text-sm text-slate-500 mb-6">
-                Enter your registered email and we'll send you a link to reset your password.
+                Enter your registered email address to request a password reset link.
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-5">

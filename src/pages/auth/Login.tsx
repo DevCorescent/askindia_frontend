@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Store, ShoppingCart, Briefcase } from 'lucide-react';
+import { Eye, EyeOff, Store, Briefcase, UserPlus } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { AskIndiaLogo } from '../../components/AskIndiaLogo';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -214,15 +214,15 @@ export const Login: React.FC = () => {
               </Link>
 
               <Link
-                to="/"
+                to="/register/customer"
                 className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all group text-center"
               >
                 <div className="w-9 h-9 bg-emerald-100 group-hover:bg-emerald-200 rounded-xl flex items-center justify-center transition-colors">
-                  <ShoppingCart className="h-4 w-4 text-emerald-600" />
+                  <UserPlus className="h-4 w-4 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-900">Browse Shop</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Explore products</p>
+                  <p className="text-xs font-semibold text-slate-900">Create Account</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Shop & book</p>
                 </div>
               </Link>
             </div>

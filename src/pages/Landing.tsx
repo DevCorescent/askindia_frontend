@@ -992,6 +992,14 @@ export const Landing: React.FC = () => {
                           </p>
                           {[
                             {
+                              to: "/register/customer",
+                              icon: ShoppingCart,
+                              color: "bg-emerald-100",
+                              ic: "text-emerald-700",
+                              label: "Customer",
+                              desc: "Shop & book services",
+                            },
+                            {
                               to: "/register/store-owner",
                               icon: Store,
                               color: "bg-brand-100",
