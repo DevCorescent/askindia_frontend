@@ -724,7 +724,7 @@ export const useAppStore = create<AppState>()(
             dataLoaders.loadOrders(role, userId, storeId ?? undefined),
             dataLoaders.loadServiceOrders(role, userId),
             dataLoaders.loadNotifications(userId),
-            dataLoaders.loadAgents(),
+            dataLoaders.loadAgents(role, userId),
             dataLoaders.loadWithdrawalRequests(role !== 'admin' ? userId : undefined),
             dataLoaders.loadUserActivities(),
             dataLoaders.loadAbandonedCarts(),

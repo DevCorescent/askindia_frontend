@@ -5,11 +5,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { StoreLogo } from '../../components/ui/StoreLogo';
 import { Search, Store as StoreIcon, Package, Briefcase, MapPin, ExternalLink, Filter, X } from 'lucide-react';
 import clsx from 'clsx';
-
-const MAJOR_CITIES = [
-  'All Cities', 'Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Chennai',
-  'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Surat',
-];
+import { CITIES_WITH_ALL } from '../../data/cities';
 
 export const StoresListing: React.FC = () => {
   const navigate = useNavigate();
@@ -127,7 +123,7 @@ export const StoresListing: React.FC = () => {
             onChange={e => setCityFilter(e.target.value)}
             className="input max-w-[150px] text-sm"
           >
-            {MAJOR_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {CITIES_WITH_ALL.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
 

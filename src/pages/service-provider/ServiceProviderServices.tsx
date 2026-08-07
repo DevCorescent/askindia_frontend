@@ -9,15 +9,7 @@ import {
   Plus, Search, Star, MapPin, Edit2, Trash2, ToggleLeft, ToggleRight, Briefcase,
 } from 'lucide-react';
 import clsx from 'clsx';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const MAJOR_CITIES = [
-  'Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Chennai',
-  'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Surat',
-  'Lucknow', 'Kanpur', 'Nagpur', 'Indore', 'Bhopal',
-  'Patna', 'Ludhiana', 'Agra', 'Nashik', 'Vadodara',
-];
+import { INDIAN_CITIES } from '../../data/cities';
 
 const COLOR_OPTIONS = [
   { label: 'Violet', value: 'from-violet-500 to-purple-600', preview: 'linear-gradient(135deg, #8b5cf6, #9333ea)' },
@@ -515,7 +507,7 @@ export const ServiceProviderServices: React.FC = () => {
               )}
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {MAJOR_CITIES.map(city => (
+              {INDIAN_CITIES.map(city => (
                 <label key={city} className={clsx(
                   'flex items-center gap-1.5 p-2 rounded-lg border cursor-pointer text-xs transition-colors',
                   form.availableCities.includes(city)

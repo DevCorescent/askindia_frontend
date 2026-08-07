@@ -8,6 +8,7 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 import { authService } from '../../lib/dataService';
 import { RegistrationShell } from './RegistrationShell';
 import clsx from 'clsx';
+import { INDIAN_CITIES } from '../../data/cities';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -37,12 +38,6 @@ const STATES = [
   'West Bengal',
 ];
 
-const MAJOR_CITIES = [
-  'Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Chennai',
-  'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Surat',
-  'Lucknow', 'Kanpur', 'Nagpur', 'Indore', 'Bhopal',
-  'Patna', 'Ludhiana', 'Agra', 'Nashik', 'Vadodara',
-];
 
 const STEPS = [
   { num: 1, label: 'Personal Info' },
@@ -460,7 +455,7 @@ export const RegisterServiceProvider: React.FC = () => {
                           )}
                         </p>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                          {MAJOR_CITIES.map(city => (
+                          {INDIAN_CITIES.map(city => (
                             <label key={city} className={clsx(
                               'flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors text-sm',
                               data.availableCities.includes(city)

@@ -123,7 +123,11 @@ export const dataLoaders = {
     return api.get<Notification[]>('/notifications/me');
   },
 
-  async loadAgents(): Promise<Agent[]> {
+  async loadAgents(role?: string, userId?: string): Promise<Agent[]> {
+    if (role === 'agent' && userId) {
+      const agent = await api.get<Agent>(`/agents/${userId}`);
+      return [agent];
+    }
     return api.get<Agent[]>('/agents');
   },
 

@@ -8,17 +8,31 @@ import { TrendingUp, ShoppingBag, DollarSign, Percent, ArrowRight, Briefcase } f
 import clsx from 'clsx';
 
 export const AgentDashboard: React.FC = () => {
-  const { currentUser, orders, serviceOrders, agents } = useAppStore();
+  const { currentUser, orders, serviceOrders, agents, loadingData, supabaseReady } = useAppStore();
 
   const agent = agents.find(a => a.id === currentUser?.id);
   const myOrders = orders.filter(o => o.agentId === currentUser?.id);
   const mySvcOrders = serviceOrders.filter(o => o.agentId === currentUser?.id);
   const recentOrders = myOrders.slice(0, 5);
 
+  if (loadingData || !supabaseReady) {
+    return (
+      <AppLayout title="Agent Dashboard">
+        <div className="flex items-center justify-center py-24">
+          <div className="animate-spin h-8 w-8 border-2 border-orange-500 border-t-transparent rounded-full" />
+        </div>
+      </AppLayout>
+    );
+  }
+
   if (!agent || !currentUser) {
     return (
       <AppLayout title="Agent Dashboard">
-        <div className="py-20 text-center text-slate-400">Agent data not found.</div>
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="text-5xl mb-4">🧑‍💼</div>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Account pending activation</h2>
+          <p className="text-slate-500 text-sm">Your agent account is being reviewed. An admin will activate it shortly.</p>
+        </div>
       </AppLayout>
     );
   }

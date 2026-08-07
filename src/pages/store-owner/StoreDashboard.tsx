@@ -14,7 +14,8 @@ import { IndianRupee, ShoppingCart, TrendingUp, Wallet } from 'lucide-react';
 
 export const StoreDashboard: React.FC = () => {
   const { currentUser, stores, orders, products, loadingData, supabaseReady } = useAppStore();
-  const myStore = stores.find(s => s.id === currentUser?.storeId);
+  const myStore = stores.find(s => s.id === currentUser?.storeId)
+    ?? stores.find(s => s.ownerId === currentUser?.id);
 
   if (loadingData || !supabaseReady) {
     return (
@@ -31,8 +32,14 @@ export const StoreDashboard: React.FC = () => {
       <AppLayout title="Store Dashboard">
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="text-5xl mb-4">🏪</div>
-          <h2 className="text-xl font-bold text-slate-900 mb-2">Store setup pending admin approval</h2>
-          <p className="text-slate-500 text-sm">Your store application is being reviewed. You'll be notified once it's approved.</p>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Store pending admin approval</h2>
+          <p className="text-slate-500 text-sm">Your store is being reviewed. You'll be notified once it's approved.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 px-4 py-2 text-sm font-medium text-brand-600 border border-brand-300 rounded-xl hover:bg-brand-50 transition-colors"
+          >
+            Refresh
+          </button>
         </div>
       </AppLayout>
     );

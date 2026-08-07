@@ -8,6 +8,7 @@ import type { Product, ProductSpec } from '../../types';
 import {
   Plus, Search, Edit2, Filter, X, Upload, Image, Trash2, Check,
 } from 'lucide-react';
+import { INDIAN_CITIES } from '../../data/cities';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ function getCategoryGradient(slug: string): string {
   return 'from-brand-400 to-brand-600';
 }
 
-const SUGGESTED_CITIES = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Pune', 'Kolkata', 'Ahmedabad'];
+const SUGGESTED_CITIES = INDIAN_CITIES;
 
 // ─── Reusable sub-components ─────────────────────────────────────────────────
 
