@@ -127,11 +127,16 @@ export const AgentProducts: React.FC = () => {
   return (
     <AppLayout title="Sell Products">
       <div className="space-y-5">
+        {!agent && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+            <span className="font-semibold">Account setup incomplete.</span> Your agent profile is being set up by the admin. You will be able to record sales once your account is activated.
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Products to Sell</h2>
             <p className="text-sm text-slate-500 mt-0.5">
-              {availableProducts.length} products available in {agentCity}
+              {availableProducts.length} products available in {agentCity || 'your area'}
             </p>
           </div>
           <div className="text-sm font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2">
@@ -200,8 +205,14 @@ export const AgentProducts: React.FC = () => {
                       </p>
                     </div>
                     <button
-                      onClick={() => openModal(product)}
-                      className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 transition-colors"
+                      onClick={() => agent && openModal(product)}
+                      disabled={!agent}
+                      className={clsx(
+                        'mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors',
+                        agent
+                          ? 'bg-orange-500 text-white hover:bg-orange-600'
+                          : 'bg-slate-100 text-slate-400 cursor-not-allowed',
+                      )}
                     >
                       <ShoppingBag className="h-4 w-4" />
                       Record Sale

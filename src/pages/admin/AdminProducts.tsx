@@ -230,9 +230,11 @@ interface ProductPanelProps {
   onClose: () => void;
   onSubmit: (form: PanelFormState) => void;
   onDelete?: () => void;
+  saving?: boolean;
+  submitError?: string;
 }
 
-const ProductPanel: React.FC<ProductPanelProps> = ({ mode, product, onClose, onSubmit, onDelete }) => {
+const ProductPanel: React.FC<ProductPanelProps> = ({ mode, product, onClose, onSubmit, onDelete, saving = false, submitError }) => {
   const cities = useCities();
   const [form, setForm] = useState<PanelFormState>(() =>
     mode === 'edit' && product ? formFromProduct(product) : emptyForm(),
@@ -796,22 +798,41 @@ const ProductPanel: React.FC<ProductPanelProps> = ({ mode, product, onClose, onS
           )}
           {mode === 'add' && <div />}
 
-          <div className="flex gap-3 ml-auto">
-            <button type="button" onClick={onClose} className="btn-secondary">
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!form.name.trim() || !form.price}
-              className={clsx(
-                'btn-primary',
-                (!form.name.trim() || !form.price) && 'opacity-50 cursor-not-allowed',
-              )}
-            >
-              <Plus className="h-4 w-4" />
-              {mode === 'add' ? 'Add Product' : 'Save Changes'}
-            </button>
+          <div className="flex flex-col gap-2 ml-auto items-end">
+            {submitError && (
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5 max-w-xs text-right">
+                {submitError}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <button type="button" onClick={onClose} disabled={saving} className="btn-secondary">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={saving || !form.name.trim() || !form.price}
+                className={clsx(
+                  'btn-primary',
+                  (saving || !form.name.trim() || !form.price) && 'opacity-50 cursor-not-allowed',
+                )}
+              >
+                {saving ? (
+                  <span className="flex items-center gap-1.5">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                    </svg>
+                    Saving…
+                  </span>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    {mode === 'add' ? 'Add Product' : 'Save Changes'}
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -829,6 +850,8 @@ export const AdminProducts: React.FC = () => {
   const [catFilter, setCatFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAdd, setShowAdd] = useState(false);
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState('');
   const [editProduct, setEditProduct] = useState<Product | null>(null);
 
   const filtered = products.filter(p => {
@@ -842,32 +865,40 @@ export const AdminProducts: React.FC = () => {
     updateProduct(product.id, { status: product.status === 'active' ? 'draft' : 'active' });
   };
 
-  const handleAdd = (form: PanelFormState) => {
+  const handleAdd = async (form: PanelFormState) => {
     const cat = PRODUCT_CATEGORIES.find(c => c.id === form.categoryId) ?? PRODUCT_CATEGORIES[0];
-    addProduct({
-      name: form.name.trim(),
-      brand: form.brand.trim() || undefined,
-      description: form.description.trim(),
-      price: parseFloat(form.price) || 0,
-      mrp: parseFloat(form.mrp) || parseFloat(form.price) || 0,
-      commission: parseFloat(form.commission) || 20,
-      categoryId: cat.id,
-      category: cat.name,
-      stock: parseInt(form.stock) || 0,
-      imageColor: getCategoryGradient(cat.slug),
-      imageIcon: cat.icon,
-      thumbnail: form.thumbnail || undefined,
-      images: form.additionalImages.filter(Boolean),
-      status: form.status,
-      featured: form.featured,
-      availableCities: form.nationwide ? [] : form.cities,
-      tags: form.tags,
-      highlights: form.highlights,
-      specifications: form.specifications,
-      warranty: form.warranty.trim() || undefined,
-      returnPolicy: form.returnPolicy.trim() || undefined,
-    });
-    setShowAdd(false);
+    setAddSaving(true);
+    setAddError('');
+    try {
+      await addProduct({
+        name: form.name.trim(),
+        brand: form.brand.trim() || undefined,
+        description: form.description.trim(),
+        price: parseFloat(form.price) || 0,
+        mrp: parseFloat(form.mrp) || parseFloat(form.price) || 0,
+        commission: parseFloat(form.commission) || 20,
+        categoryId: cat.id,
+        category: cat.name,
+        stock: parseInt(form.stock) || 0,
+        imageColor: getCategoryGradient(cat.slug),
+        imageIcon: cat.icon,
+        thumbnail: form.thumbnail || undefined,
+        images: form.additionalImages.filter(Boolean),
+        status: form.status,
+        featured: form.featured,
+        availableCities: form.nationwide ? [] : form.cities,
+        tags: form.tags,
+        highlights: form.highlights,
+        specifications: form.specifications,
+        warranty: form.warranty.trim() || undefined,
+        returnPolicy: form.returnPolicy.trim() || undefined,
+      });
+      setShowAdd(false);
+    } catch (err) {
+      setAddError((err as Error).message || 'Failed to save product. Please try again.');
+    } finally {
+      setAddSaving(false);
+    }
   };
 
   const handleEdit = (form: PanelFormState) => {
@@ -1054,8 +1085,10 @@ export const AdminProducts: React.FC = () => {
       {showAdd && (
         <ProductPanel
           mode="add"
-          onClose={() => setShowAdd(false)}
+          onClose={() => { setShowAdd(false); setAddError(''); }}
           onSubmit={handleAdd}
+          saving={addSaving}
+          submitError={addError}
         />
       )}
 

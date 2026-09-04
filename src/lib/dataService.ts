@@ -131,8 +131,12 @@ export const dataLoaders = {
 
   async loadAgents(role?: string, userId?: string): Promise<Agent[]> {
     if (role === 'agent' && userId) {
-      const agent = await api.get<Agent>(`/agents/${userId}`);
-      return [agent];
+      try {
+        const agent = await api.get<Agent>(`/agents/${userId}`);
+        return [agent];
+      } catch {
+        return [];
+      }
     }
     return api.get<Agent[]>('/agents');
   },

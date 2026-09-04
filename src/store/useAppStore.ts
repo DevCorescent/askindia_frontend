@@ -57,7 +57,7 @@ interface AppState {
   creditAgentCommission: (agentId: string, amount: number) => void;
 
   // Products (admin)
-  addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'sold'>) => void;
+  addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'sold'>) => Promise<void>;
   updateProduct: (id: string, patch: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
 
@@ -891,7 +891,7 @@ export const useAppStore = create<AppState>()(
 
       // ── Products ────────────────────────────────────────────────────────────
 
-      addProduct: (product) => {
+      addProduct: async (product) => {
         const tempId = `p_${Date.now()}`;
         const newProduct: Product = {
           ...product,
@@ -902,15 +902,17 @@ export const useAppStore = create<AppState>()(
         set(s => ({ products: [newProduct, ...s.products] }));
         if (isSupabaseConfigured) {
           const { currentUser } = get();
-          // Use product's own storeId if set, otherwise fall back to currentUser's storeId
           const storeId = (product as Product & { storeId?: string }).storeId ?? currentUser?.storeId;
-          mutations.createProduct({ ...product, storeId })
-            .then(dbId => {
-              set(s => ({
-                products: s.products.map(p => p.id === tempId ? { ...p, id: dbId } : p),
-              }));
-            })
-            .catch(err => console.error('[addProduct] DB error:', err));
+          try {
+            const dbId = await mutations.createProduct({ ...product, storeId });
+            set(s => ({
+              products: s.products.map(p => p.id === tempId ? { ...p, id: dbId } : p),
+            }));
+          } catch (err) {
+            // Remove the ghost product so the list stays consistent with the DB.
+            set(s => ({ products: s.products.filter(p => p.id !== tempId) }));
+            throw err;
+          }
         }
       },
 
