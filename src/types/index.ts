@@ -5,6 +5,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  /** Login ID for admin-created store accounts (sign-in accepts it instead of email). */
+  username?: string;
   avatar?: string;
   storeId?: string;
   phone?: string;
@@ -182,13 +184,24 @@ export interface OrderItem {
 export interface Review {
   id: string;
   orderId: string;
-  productId: string;
+  /** Set for product reviews; service reviews carry serviceId instead. */
+  productId?: string;
+  serviceId?: string;
   customerId: string;
   storeId?: string;
   rating: number;
   reviewText: string;
   createdAt: string;
   customerName?: string;
+  /** Product name or service title (on the store's received-reviews list). */
+  itemName?: string;
+}
+
+/** One step of an order's status history, from the backend. */
+export interface OrderStatusEvent {
+  status: string;
+  at: string;
+  note?: string;
 }
 
 export interface ProductReviews {

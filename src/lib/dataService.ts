@@ -2,8 +2,16 @@ import { api, setTokens, clearTokens, getAccessToken } from '../api/client';
 import type {
   User, Product, Service, Store, Order, ServiceOrder, Agent,
   WithdrawalRequest, Notification, HomepageConfig, UserActivity,
-  Role, AbandonedCart, InvoiceSettings, Review, ProductReviews,
+  Role, AbandonedCart, InvoiceSettings, Review, ProductReviews, OrderStatusEvent,
 } from '../types';
+
+/** Credentials an admin assigns to a store / service store. */
+export interface StoreLoginInput {
+  name: string;
+  email: string;
+  username: string;
+  password: string;
+}
 
 function getRefreshToken(): string | null {
   try { return localStorage.getItem('ai_refresh'); } catch { return null; }
@@ -15,6 +23,7 @@ function getRefreshToken(): string | null {
 
 export const authService = {
 
+  /** `email` may also be a store account's User ID. */
   async signIn(email: string, password: string): Promise<{ success: boolean; user?: User; error?: string }> {
     try {
       const data = await api.post<{ user: User; accessToken: string; refreshToken: string }>(
@@ -75,6 +84,42 @@ export const authService = {
   async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       const data = await api.post<{ message: string }>('/auth/reset-password', { token, newPassword });
+      return { success: true, message: data.message };
+    } catch (e) {
+      return { success: false, error: (e as Error).message };
+    }
+  },
+
+  // ── Email-OTP recovery (final stage — the backend flag decides) ────────────
+
+  /** Which recovery flows the backend has enabled; OTP is off until final stage. */
+  async recoveryOptions(): Promise<{ otpEnabled: boolean }> {
+    try { return await api.get<{ otpEnabled: boolean }>('/auth/recovery-options'); }
+    catch { return { otpEnabled: false }; }
+  },
+
+  async requestPasswordOtp(identifier: string): Promise<{ success: boolean; message?: string; devOtp?: string; error?: string }> {
+    try {
+      const data = await api.post<{ message: string; devOtp?: string }>('/auth/forgot-password/otp', { identifier });
+      return { success: true, message: data.message, devOtp: data.devOtp };
+    } catch (e) {
+      return { success: false, error: (e as Error).message };
+    }
+  },
+
+  /** Exchanges a valid code for a reset token used with /reset-password. */
+  async verifyPasswordOtp(identifier: string, otp: string): Promise<{ success: boolean; resetToken?: string; error?: string }> {
+    try {
+      const data = await api.post<{ resetToken: string }>('/auth/forgot-password/verify-otp', { identifier, otp });
+      return { success: true, resetToken: data.resetToken };
+    } catch (e) {
+      return { success: false, error: (e as Error).message };
+    }
+  },
+
+  async forgotUsername(email: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const data = await api.post<{ message: string }>('/auth/forgot-username', { email });
       return { success: true, message: data.message };
     } catch (e) {
       return { success: false, error: (e as Error).message };
@@ -217,10 +262,16 @@ export const mutations = {
 
   // ── Reviews ────────────────────────────────────────────────────────────────
 
+  /** Review a delivered product (productId) or a completed service booking (serviceId). */
   async createReview(payload: {
-    orderId: string; productId: string; rating: number; reviewText?: string;
+    orderId: string; productId?: string; serviceId?: string; rating: number; reviewText?: string;
   }): Promise<void> {
     await api.post('/reviews', payload);
+  },
+
+  /** Reviews customers left on the signed-in store's / provider's items. */
+  async loadReceivedReviews(): Promise<Review[]> {
+    return api.get('/reviews/received');
   },
 
   async loadProductReviews(productId: string): Promise<ProductReviews> {
@@ -235,11 +286,24 @@ export const mutations = {
   // ── Stores ─────────────────────────────────────────────────────────────────
 
   async createStore(data: Omit<Store, 'id' | 'createdAt' | 'totalSales' | 'totalOrders' | 'walletBalance'>): Promise<string> {
+    // The backend links the store to its owner's profile (profiles.store_id).
+    // The client used to re-link it via PATCH /auth/me, which pointed the
+    // *admin's* profile at every store the admin created.
     const result = await api.post<{ id: string }>('/stores', data);
-    const storeId = result.id;
-    // Link the new store back to the owner's profile
-    await api.patch('/auth/me', { storeId });
-    return storeId;
+    return result.id;
+  },
+
+  /** Admin: create a store together with its own login (User ID + password). */
+  async createStoreWithLogin(
+    data: Omit<Store, 'id' | 'createdAt' | 'totalSales' | 'totalOrders' | 'walletBalance' | 'ownerId' | 'ownerName'>,
+    ownerAccount: StoreLoginInput,
+  ): Promise<Store> {
+    return api.post<Store>('/stores', { ...data, ownerAccount });
+  },
+
+  /** Admin: give an existing admin-owned store its own login. */
+  async createStoreLogin(storeId: string, account: StoreLoginInput): Promise<Store> {
+    return api.post<Store>(`/stores/${storeId}/owner-account`, account);
   },
 
   async updateStore(id: string, patch: Partial<Store>): Promise<void> {
@@ -270,6 +334,15 @@ export const mutations = {
 
   async updateOrder(id: string, patch: Partial<Order>): Promise<void> {
     await api.patch(`/orders/${id}`, patch);
+  },
+
+  /** Order status timeline (from the backend's order_status_history). */
+  async loadOrderTracking(id: string): Promise<{ order: Order; timeline: OrderStatusEvent[] }> {
+    return api.get(`/orders/${encodeURIComponent(id)}/tracking`);
+  },
+
+  async loadServiceOrderTracking(id: string): Promise<{ order: ServiceOrder; timeline: OrderStatusEvent[] }> {
+    return api.get(`/service-orders/${encodeURIComponent(id)}/tracking`);
   },
 
   // ── Service Orders ──────────────────────────────────────────────────────────

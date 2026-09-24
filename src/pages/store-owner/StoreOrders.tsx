@@ -10,31 +10,57 @@ import { Loader2 } from 'lucide-react';
 import { InvoiceModal } from '../../components/InvoiceTemplate';
 import { ProductImage } from '../../components/ui/ProductImage';
 import { toast } from '../../components/ui/Toast';
+import { OrderTimeline, ORDER_STATUS_LABEL } from '../../components/OrderTimeline';
 
-// Fulfilment lifecycle the store owner drives (mirrors the admin controls).
+// Fulfilment lifecycle the store drives: PENDING → ACCEPTED → DISPATCHED → DELIVERED.
+// The backend enforces the same transitions (orders/order-access.ts).
 const FLOW: Order['status'][] = ['pending', 'processing', 'shipped', 'delivered'];
 const STEPS: { key: Order['status']; label: string; icon: React.ElementType }[] = [
-  { key: 'pending',    label: 'Order Placed', icon: Check },
-  { key: 'processing', label: 'Processing',   icon: Package },
-  { key: 'shipped',    label: 'Shipped',      icon: Truck },
-  { key: 'delivered',  label: 'Delivered',    icon: PackageCheck },
+  { key: 'pending',    label: ORDER_STATUS_LABEL.pending,    icon: Check },
+  { key: 'processing', label: ORDER_STATUS_LABEL.processing, icon: Package },
+  { key: 'shipped',    label: ORDER_STATUS_LABEL.shipped,    icon: Truck },
+  { key: 'delivered',  label: ORDER_STATUS_LABEL.delivered,  icon: PackageCheck },
 ];
+
+// The store's next action for each status.
+const NEXT_ACTION: Partial<Record<Order['status'], { to: Order['status']; label: string; icon: React.ElementType }>> = {
+  pending:    { to: 'processing', label: 'Accept Order',   icon: Package },
+  processing: { to: 'shipped',    label: 'Dispatch',       icon: Truck },
+  shipped:    { to: 'delivered',  label: 'Mark Delivered', icon: PackageCheck },
+};
+
+const FILTER_LABEL: Record<string, string> = { all: 'All', ...ORDER_STATUS_LABEL, pending: 'Pending' };
 
 export const StoreOrders: React.FC = () => {
   const { currentUser, orders, stores, products, updateOrder } = useAppStore();
   const [processingId, setProcessingId] = useState<string | null>(null);
+  // Optional shipment details captured when dispatching from the detail view.
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [courierName, setCourierName] = useState('');
 
-  // Store owner's only fulfilment action: accept a pending order → processing.
-  // Shipping & delivery are handled by the delivery partner.
-  const acceptOrder = async (order: Order) => {
+  // Move an order one step along the fulfilment flow.
+  const advanceOrder = async (order: Order) => {
+    const next = NEXT_ACTION[order.status];
+    if (!next) return;
+    const patch: Partial<Order> = { status: next.to };
+    if (next.to === 'shipped' && selectedOrder?.id === order.id) {
+      if (trackingNumber.trim()) patch.trackingNumber = trackingNumber.trim();
+      if (courierName.trim())    patch.courierName    = courierName.trim();
+    }
     setProcessingId(order.id);
     try {
-      await updateOrder(order.id, { status: 'processing' });
-      if (selectedOrder?.id === order.id) setSelectedOrder({ ...order, status: 'processing' });
-      toast.success(`Order #${order.id.toUpperCase()} accepted — now processing`);
+      if (!(await updateOrder(order.id, patch))) return;
+      if (selectedOrder?.id === order.id) setSelectedOrder({ ...order, ...patch });
+      toast.success(`Order #${order.id.toUpperCase()} — ${ORDER_STATUS_LABEL[next.to]}`);
     } finally {
       setProcessingId(null);
     }
+  };
+
+  const openOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setTrackingNumber(order.trackingNumber ?? '');
+    setCourierName(order.courierName ?? '');
   };
   // Resolve an order line-item to its live product visual (real photo when available).
   const itemVisual = (item: { productId?: string; productName: string; productIcon: string; productColor: string }) => {
@@ -79,7 +105,7 @@ export const StoreOrders: React.FC = () => {
                 className={`px-3 py-1.5 rounded-full border transition-colors ${
                   statusFilter === s ? 'bg-brand-600 text-white border-brand-600' : 'bg-white border-slate-200 text-slate-600 hover:border-brand-300'
                 }`}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+                {FILTER_LABEL[s] ?? s}
                 {s !== 'all' && ` (${myOrders.filter(o => o.status === s).length})`}
               </button>
             ))}
@@ -139,18 +165,23 @@ export const StoreOrders: React.FC = () => {
                     <td className="table-td">{statusBadge(order.status)}</td>
                     <td className="table-td">
                       <div className="flex items-center gap-1">
-                        {order.status === 'pending' && (
-                          <button
-                            onClick={() => acceptOrder(order)}
-                            disabled={processingId === order.id}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition-colors whitespace-nowrap disabled:opacity-60"
-                            title="Accept & start processing"
-                          >
-                            {processingId === order.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Package className="h-3.5 w-3.5" />}
-                            <span className="hidden lg:inline">Accept &amp; Process</span>
-                          </button>
-                        )}
-                        <button onClick={() => setSelectedOrder(order)} className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-colors" title="View details">
+                        {(() => {
+                          const next = NEXT_ACTION[order.status];
+                          if (!next) return null;
+                          const Icon = next.icon;
+                          return (
+                            <button
+                              onClick={() => advanceOrder(order)}
+                              disabled={processingId === order.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition-colors whitespace-nowrap disabled:opacity-60"
+                              title={next.label}
+                            >
+                              {processingId === order.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
+                              <span className="hidden lg:inline">{next.label}</span>
+                            </button>
+                          );
+                        })()}
+                        <button onClick={() => openOrder(order)} className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-colors" title="View details">
                           <Eye className="h-4 w-4" />
                         </button>
                         {order.status === 'delivered' && (
@@ -223,37 +254,60 @@ export const StoreOrders: React.FC = () => {
                   })}
                 </div>
 
-                {/* Status note + the store owner's single action (accept) */}
-                <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-200">
-                  {selectedOrder.status === 'pending' ? (
-                    <button
-                      onClick={() => acceptOrder(selectedOrder)}
-                      disabled={processingId === selectedOrder.id}
-                      className="btn-primary gap-2 text-sm disabled:opacity-60"
-                    >
-                      {processingId === selectedOrder.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
-                      Accept &amp; Process
-                    </button>
-                  ) : selectedOrder.status === 'delivered' ? (
-                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
-                      <PackageCheck className="h-4 w-4" /> Order delivered
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
-                      <Truck className="h-4 w-4 text-brand-500" />
-                      With delivery partner — <span className="font-semibold text-slate-700 capitalize">{selectedOrder.status}</span>
-                    </span>
+                {/* The store's next fulfilment action */}
+                <div className="mt-4 pt-4 border-t border-slate-200 space-y-3">
+                  {selectedOrder.status === 'processing' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <input className="input text-sm" placeholder="Tracking number (optional)"
+                        value={trackingNumber} onChange={e => setTrackingNumber(e.target.value)} />
+                      <input className="input text-sm" placeholder="Courier (optional)"
+                        value={courierName} onChange={e => setCourierName(e.target.value)} />
+                    </div>
                   )}
-                  <span className="text-xs text-slate-400 ml-auto inline-flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> Shipping &amp; delivery handled by delivery partner
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(() => {
+                      const next = NEXT_ACTION[selectedOrder.status];
+                      if (!next) {
+                        return (
+                          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
+                            <PackageCheck className="h-4 w-4" /> Order delivered
+                          </span>
+                        );
+                      }
+                      const Icon = next.icon;
+                      return (
+                        <button
+                          onClick={() => advanceOrder(selectedOrder)}
+                          disabled={processingId === selectedOrder.id}
+                          className="btn-primary gap-2 text-sm disabled:opacity-60"
+                        >
+                          {processingId === selectedOrder.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
+                          {next.label}
+                        </button>
+                      );
+                    })()}
+                    {(selectedOrder.trackingNumber || selectedOrder.courierName) && selectedOrder.status !== 'processing' && (
+                      <span className="text-xs text-slate-500 ml-auto inline-flex items-center gap-1">
+                        <Truck className="h-3 w-3" />
+                        {[selectedOrder.courierName, selectedOrder.trackingNumber].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
+
+            <div className="bg-slate-50 rounded-xl p-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3 inline-flex items-center gap-1">
+                <Clock className="h-3 w-3" /> Status History
+              </p>
+              <OrderTimeline orderId={selectedOrder.id} kind="product" status={selectedOrder.status} />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-50 rounded-xl p-4">
                 <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Customer</p>
                 <p className="font-semibold">{selectedOrder.customerName}</p>
+                {selectedOrder.customerEmail && <p className="text-xs text-slate-500">{selectedOrder.customerEmail}</p>}
                 <p className="text-sm text-slate-500">{selectedOrder.address}, {selectedOrder.city}</p>
               </div>
               <div className="bg-slate-50 rounded-xl p-4">

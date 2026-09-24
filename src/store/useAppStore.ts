@@ -76,11 +76,13 @@ interface AppState {
 
   // Product orders
   addOrder: (order: Omit<Order, 'id'>, id?: string) => void;
-  updateOrder: (id: string, patch: Partial<Order>) => void;
+  /** Optimistic; resolves false (and rolls back + toasts) when the backend rejects it. */
+  updateOrder: (id: string, patch: Partial<Order>) => Promise<boolean>;
 
   // Service orders
   addServiceOrder: (order: Omit<ServiceOrder, 'id'>, id?: string) => void;
-  updateServiceOrder: (id: string, patch: Partial<ServiceOrder>) => void;
+  /** Optimistic; resolves false (and rolls back + toasts) when the backend rejects it. */
+  updateServiceOrder: (id: string, patch: Partial<ServiceOrder>) => Promise<boolean>;
 
   // Refresh orders from Supabase (for admin/store-owner after new order arrives)
   refreshOrders: () => Promise<void>;
@@ -1076,7 +1078,9 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      updateOrder: (id, patch) => {
+      updateOrder: async (id, patch) => {
+        const prevOrder = get().orders.find(o => o.id === id);
+        const prevStore = get().stores.find(st => st.id === prevOrder?.storeId);
         set(s => {
           const orders = s.orders.map(o => o.id === id ? { ...o, ...patch } : o);
           const updatedOrder = orders.find(o => o.id === id);
@@ -1096,8 +1100,20 @@ export const useAppStore = create<AppState>()(
           }
           return { orders };
         });
-        if (isSupabaseConfigured) {
-          mutations.updateOrder(id, patch).catch(err => console.error('[updateOrder] DB error:', err));
+        if (!isSupabaseConfigured) return true;
+        try {
+          await mutations.updateOrder(id, patch);
+          return true;
+        } catch (err) {
+          // The backend validates ownership and status transitions — undo the
+          // optimistic change so the UI never shows a status that wasn't saved.
+          console.error('[updateOrder] DB error:', err);
+          set(s => ({
+            orders: prevOrder ? s.orders.map(o => o.id === id ? prevOrder : o) : s.orders,
+            stores: prevStore ? s.stores.map(st => st.id === prevStore.id ? prevStore : st) : s.stores,
+          }));
+          toast.error(`Could not update order: ${(err as Error).message}`);
+          return false;
         }
       },
 
@@ -1129,10 +1145,18 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      updateServiceOrder: (id, patch) => {
+      updateServiceOrder: async (id, patch) => {
+        const prev = get().serviceOrders.find(o => o.id === id);
         set(s => ({ serviceOrders: s.serviceOrders.map(o => o.id === id ? { ...o, ...patch } : o) }));
-        if (isSupabaseConfigured) {
-          mutations.updateServiceOrder(id, patch).catch(err => console.error('[updateServiceOrder] DB error:', err));
+        if (!isSupabaseConfigured) return true;
+        try {
+          await mutations.updateServiceOrder(id, patch);
+          return true;
+        } catch (err) {
+          console.error('[updateServiceOrder] DB error:', err);
+          if (prev) set(s => ({ serviceOrders: s.serviceOrders.map(o => o.id === id ? prev : o) }));
+          toast.error(`Could not update booking: ${(err as Error).message}`);
+          return false;
         }
       },
 

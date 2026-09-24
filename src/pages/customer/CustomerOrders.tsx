@@ -11,13 +11,9 @@ import { InvoiceModal } from '../../components/InvoiceTemplate';
 import { mutations } from '../../lib/dataService';
 import clsx from 'clsx';
 import { ProductImage, productPhoto } from '../../components/ui/ProductImage';
+import { OrderTimeline, ORDER_STATUS_LABEL } from '../../components/OrderTimeline';
 
-const TRACKING_STEPS = [
-  { key: 'pending', label: 'Order Placed', icon: '📋' },
-  { key: 'processing', label: 'Processing', icon: '⚙️' },
-  { key: 'shipped', label: 'Shipped', icon: '🚚' },
-  { key: 'delivered', label: 'Delivered', icon: '✅' },
-];
+const TRACKING_STEPS = ['pending', 'processing', 'shipped', 'delivered'].map(key => ({ key, label: ORDER_STATUS_LABEL[key] }));
 
 const SERVICE_STATUS_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
   pending:     { label: 'Pending',     cls: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200',   dot: 'bg-amber-500' },
@@ -62,6 +58,8 @@ export const CustomerOrders: React.FC = () => {
   // Review state — a review is per (order, product), so an order with several
   // products can be rated one product at a time.
   const [reviewOrder, setReviewOrder]         = useState<Order | null>(null);
+  // A completed service booking being rated (one review per booking).
+  const [reviewSvcOrder, setReviewSvcOrder]   = useState<ServiceOrder | null>(null);
   const [reviewProductId, setReviewProductId] = useState<string>('');
   const [reviewRating, setReviewRating]       = useState(0);
   const [reviewHover, setReviewHover]         = useState(0);
@@ -70,7 +68,8 @@ export const CustomerOrders: React.FC = () => {
   const [reviewError, setReviewError]           = useState('');
   const [reviewedKeys, setReviewedKeys]         = useState<Set<string>>(new Set());
 
-  const reviewKey = (orderId: string, productId: string) => `${orderId}:${productId}`;
+  // Keyed by (order, product) or (booking, service).
+  const reviewKey = (orderId: string, itemId: string) => `${orderId}:${itemId}`;
 
   // Hydrate what this customer has already rated, so the state survives a reload.
   useEffect(() => {
@@ -79,7 +78,7 @@ export const CustomerOrders: React.FC = () => {
     mutations.loadMyReviews()
       .then(reviews => {
         if (cancelled) return;
-        setReviewedKeys(new Set(reviews.map(r => reviewKey(r.orderId, r.productId))));
+        setReviewedKeys(new Set(reviews.map(r => reviewKey(r.orderId, r.productId ?? r.serviceId ?? ''))));
       })
       .catch(() => { /* non-fatal: the Rate button just stays visible */ });
     return () => { cancelled = true; };
@@ -97,7 +96,36 @@ export const CustomerOrders: React.FC = () => {
     setReviewError('');
   };
 
+  const openServiceReview = (order: ServiceOrder) => {
+    setReviewSvcOrder(order);
+    setReviewRating(0);
+    setReviewText('');
+    setReviewError('');
+  };
+
+  const closeReview = () => { setReviewOrder(null); setReviewSvcOrder(null); };
+
   const handleSubmitReview = async () => {
+    if (reviewSvcOrder) {
+      if (reviewRating === 0) return;
+      setSubmittingReview(true);
+      setReviewError('');
+      try {
+        await mutations.createReview({
+          orderId:    reviewSvcOrder.id,
+          serviceId:  reviewSvcOrder.serviceId,
+          rating:     reviewRating,
+          reviewText: reviewText.trim(),
+        });
+        setReviewedKeys(prev => new Set(prev).add(reviewKey(reviewSvcOrder.id, reviewSvcOrder.serviceId)));
+        setReviewSvcOrder(null);
+      } catch (e) {
+        setReviewError((e as Error).message || 'Could not save your review. Please try again.');
+      } finally {
+        setSubmittingReview(false);
+      }
+      return;
+    }
     if (!reviewOrder || !reviewProductId || reviewRating === 0) return;
     setSubmittingReview(true);
     setReviewError('');
@@ -293,7 +321,7 @@ export const CustomerOrders: React.FC = () => {
                           </button>
                         )}
                         <button onClick={() => setSelectedOrder(order)} className="btn-secondary text-xs py-1.5">
-                          View Details
+                          Track Order
                         </button>
                       </div>
                     </div>
@@ -396,6 +424,20 @@ export const CustomerOrders: React.FC = () => {
                           <MapPin className="h-3 w-3" /> {order.address}
                         </p>
                         <div className="flex items-center gap-2">
+                          {order.status === 'completed' && order.serviceId && (
+                            reviewedKeys.has(reviewKey(order.id, order.serviceId)) ? (
+                              <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium px-2">
+                                <Star className="h-3 w-3 fill-emerald-500" /> Reviewed
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => openServiceReview(order)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition-colors"
+                              >
+                                <Star className="h-3.5 w-3.5" /> Rate
+                              </button>
+                            )
+                          )}
                           {order.status === 'completed' && (
                             <button
                               onClick={() => setInvoiceSvcOrder(order)}
@@ -448,6 +490,18 @@ export const CustomerOrders: React.FC = () => {
                 <p className="text-xs text-slate-400">Payment: {selectedOrder.paymentMethod.toUpperCase()}</p>
               </div>
             </div>
+            <div className="bg-slate-50 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase">Order Tracking</p>
+                <p className="text-xs text-slate-400">Placed {formatDate(selectedOrder.createdAt)}</p>
+              </div>
+              <OrderTimeline orderId={selectedOrder.id} kind="product" status={selectedOrder.status} />
+              {(selectedOrder.courierName || selectedOrder.trackingNumber) && (
+                <p className="text-xs text-slate-500 mt-1">
+                  Shipment: {[selectedOrder.courierName, selectedOrder.trackingNumber].filter(Boolean).join(' · ')}
+                </p>
+              )}
+            </div>
             <div className="space-y-2">
               {selectedOrder.items.map((item, i) => (
                 <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
@@ -490,17 +544,19 @@ export const CustomerOrders: React.FC = () => {
         )}
       </Modal>
 
-      {/* Review Modal — one product at a time */}
-      {reviewOrder && (
+      {/* Review Modal — one product (or one service booking) at a time */}
+      {(reviewOrder || reviewSvcOrder) && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <h3 className="font-bold text-slate-900 text-lg mb-1">Rate Your Purchase</h3>
+            <h3 className="font-bold text-slate-900 text-lg mb-1">{reviewSvcOrder ? 'Rate Your Booking' : 'Rate Your Purchase'}</h3>
             <p className="text-sm text-slate-500 mb-4">
-              Order #{reviewOrder.id.toUpperCase()} · {reviewOrder.storeName}
+              {reviewSvcOrder
+                ? <>Booking #{reviewSvcOrder.id.slice(-8).toUpperCase()} · {reviewSvcOrder.providerName}</>
+                : <>Order #{reviewOrder!.id.toUpperCase()} · {reviewOrder!.storeName}</>}
             </p>
 
             {/* Product picker — only when the order has more than one product */}
-            {reviewOrder.items.length > 1 && (
+            {reviewOrder && reviewOrder.items.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
                 {reviewOrder.items.map(item => {
                   const done = reviewedKeys.has(reviewKey(reviewOrder.id, item.productId));
@@ -539,7 +595,9 @@ export const CustomerOrders: React.FC = () => {
             )}
 
             <p className="text-sm font-medium text-slate-800 text-center mb-3 truncate">
-              {reviewOrder.items.find(i => i.productId === reviewProductId)?.productName}
+              {reviewSvcOrder
+                ? reviewSvcOrder.serviceTitle
+                : reviewOrder!.items.find(i => i.productId === reviewProductId)?.productName}
             </p>
 
             {/* Stars */}
@@ -578,8 +636,8 @@ export const CustomerOrders: React.FC = () => {
               </p>
             )}
             <div className="flex gap-3 mt-2">
-              <button onClick={() => setReviewOrder(null)} className="btn-secondary flex-1 justify-center">
-                {unratedItems(reviewOrder).length < reviewOrder.items.length ? 'Done' : 'Cancel'}
+              <button onClick={closeReview} className="btn-secondary flex-1 justify-center">
+                {reviewOrder && unratedItems(reviewOrder).length < reviewOrder.items.length ? 'Done' : 'Cancel'}
               </button>
               <button
                 onClick={handleSubmitReview}
@@ -661,6 +719,11 @@ export const CustomerOrders: React.FC = () => {
                 </div>
                 <p className="text-xs text-slate-500 mt-1">{selectedServiceOrder.address}</p>
               </div>
+            </div>
+
+            <div className="bg-slate-50 rounded-xl p-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Booking Tracking</p>
+              <OrderTimeline orderId={selectedServiceOrder.id} kind="service" status={selectedServiceOrder.status} />
             </div>
 
             {selectedServiceOrder.notes && (
