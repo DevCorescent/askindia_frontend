@@ -36,7 +36,7 @@ export const DeliveryDashboard: React.FC = () => {
   const advance = async (order: Order, next: Order['status']) => {
     setBusyId(order.id);
     try {
-      await updateOrder(order.id, { status: next });
+      if (!(await updateOrder(order.id, { status: next }))) return;
       toast.success(next === 'shipped' ? `Order #${order.id.toUpperCase()} marked shipped 🚚` : `Order #${order.id.toUpperCase()} delivered ✅`);
     } finally {
       setBusyId(null);

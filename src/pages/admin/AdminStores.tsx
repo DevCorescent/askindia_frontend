@@ -4,13 +4,18 @@ import { AppLayout } from '../../components/layout/AppLayout';
 import { statusBadge } from '../../components/ui/Badge';
 import { formatCurrency, formatDate } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
-import { dataLoaders } from '../../lib/dataService';
+import { dataLoaders, mutations, type StoreLoginInput } from '../../lib/dataService';
 import type { Store, User } from '../../types';
 import {
   Search, Plus, X, ShoppingBag, Briefcase, CheckCircle, XCircle,
   Eye, Store as StoreIcon, AlertTriangle, RefreshCw, ExternalLink,
-  Building2, CreditCard, Info, ImagePlus, Loader2,
+  Building2, CreditCard, Info, ImagePlus, Loader2, KeyRound,
 } from 'lucide-react';
+import { toast } from '../../components/ui/Toast';
+import {
+  StoreLoginFields, emptyStoreLogin, validateStoreLogin, generatePassword, type StoreLoginErrors,
+} from '../../components/StoreLoginFields';
+import { MIN_PASSWORD_LENGTH } from '../../constants/auth';
 import clsx from 'clsx';
 import { StoreLogo, isImageLogo } from '../../components/ui/StoreLogo';
 import { uploadImage } from '../../utils/imageUpload';
@@ -21,7 +26,9 @@ const slugify = (s: string) =>
 const PRESET_COLORS = ['#4f46e5', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626'];
 
 type StoreTab = 'product' | 'service';
-type DetailTab = 'overview' | 'business' | 'banking';
+type DetailTab = 'overview' | 'business' | 'banking' | 'access';
+// 'new': create the store's own login (recommended); 'existing': assign an existing account.
+type LoginMode = 'new' | 'existing';
 
 interface CreateFormData {
   storeType: 'product' | 'service';
@@ -74,6 +81,17 @@ export const AdminStores: React.FC = () => {
   const [form, setForm] = useState<CreateFormData>(defaultForm);
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof CreateFormData, string>>>({});
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [loginMode, setLoginMode] = useState<LoginMode>('new');
+  const [storeLogin, setStoreLogin] = useState<StoreLoginInput>(emptyStoreLogin);
+  const [loginErrors, setLoginErrors] = useState<StoreLoginErrors>({});
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+
+  // Login Access tab (store detail)
+  const [accessLogin, setAccessLogin] = useState<StoreLoginInput>(emptyStoreLogin);
+  const [accessErrors, setAccessErrors] = useState<StoreLoginErrors>({});
+  const [newPassword, setNewPassword] = useState('');
+  const [accessBusy, setAccessBusy] = useState(false);
 
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>('overview');
@@ -153,7 +171,64 @@ export const AdminStores: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
+  const openCreate = () => {
+    setShowCreate(true); setForm(defaultForm); setSlugManuallyEdited(false); setFormErrors({});
+    setLoginMode('new'); setStoreLogin(emptyStoreLogin); setLoginErrors({}); setCreateError('');
+  };
+
+  const storePayload = () => ({
+    storeType: form.storeType,
+    subdomain: form.slug,
+    name: form.name.trim(),
+    slug: form.slug.trim(),
+    tagline: form.tagline.trim(),
+    description: form.description.trim(),
+    logo: form.logo || '🏪',
+    themeColor: form.themeColor,
+    city: form.city.trim(),
+    state: form.state.trim(),
+    commissionRate: Number(form.commissionRate),
+    contactEmail: form.contactEmail.trim() || undefined,
+    contactPhone: form.contactPhone.trim() || undefined,
+    gstNumber: form.gstNumber.trim() || undefined,
+    bankAccount: form.bankAccount.trim() || undefined,
+    bankIfsc: form.bankIfsc.trim() || undefined,
+    status: 'pending' as const,
+  });
+
+  const closeCreate = () => {
+    setShowCreate(false);
+    setForm(defaultForm);
+    setSlugManuallyEdited(false);
+    setFormErrors({});
+  };
+
+  // Store + its own login in one backend call; not optimistic, so a duplicate
+  // User ID / email / slug is reported in the form instead of vanishing later.
+  const createWithLogin = async () => {
+    const storeOk = validateForm();
+    const errors = validateStoreLogin(storeLogin);
+    setLoginErrors(errors);
+    if (!storeOk || Object.keys(errors).length) return;
+    setCreating(true);
+    setCreateError('');
+    try {
+      const created = await mutations.createStoreWithLogin(storePayload(), {
+        ...storeLogin, name: storeLogin.name.trim(), email: storeLogin.email.trim(), username: storeLogin.username.trim(),
+      });
+      useAppStore.setState(s => ({ stores: [...s.stores, created] }));
+      loadBackendUsers();
+      toast.success(`Store "${created.name}" created — it signs in with User ID "${storeLogin.username.trim()}"`);
+      closeCreate();
+    } catch (e) {
+      setCreateError((e as Error).message || 'Could not create the store.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const handleCreateStore = () => {
+    if (loginMode === 'new') { createWithLogin(); return; }
     if (!validateForm()) return;
     const ownerUser = registeredUsers.find(u => u.id === form.ownerId);
     createStore({
@@ -177,10 +252,7 @@ export const AdminStores: React.FC = () => {
       bankIfsc: form.bankIfsc.trim() || undefined,
       status: 'pending',
     });
-    setShowCreate(false);
-    setForm(defaultForm);
-    setSlugManuallyEdited(false);
-    setFormErrors({});
+    closeCreate();
   };
 
   const handleActivate = (store: Store) => {
@@ -216,6 +288,51 @@ export const AdminStores: React.FC = () => {
     setDetailTab('overview');
     setShowRejectForm(false);
     setRejectReason('');
+    setAccessLogin({ ...emptyStoreLogin, email: store.contactEmail ?? '' });
+    setAccessErrors({});
+    setNewPassword('');
+  };
+
+  // The store's login account, when it has its own (not the admin's).
+  const storeOwner = (store: Store) => {
+    const owner = backendUsers.find(u => u.id === store.ownerId);
+    return owner && owner.role !== 'admin' ? owner : null;
+  };
+
+  const handleCreateStoreLogin = async (store: Store) => {
+    const errors = validateStoreLogin(accessLogin);
+    setAccessErrors(errors);
+    if (Object.keys(errors).length) return;
+    setAccessBusy(true);
+    try {
+      const updated = await mutations.createStoreLogin(store.id, {
+        ...accessLogin, name: accessLogin.name.trim(), email: accessLogin.email.trim(), username: accessLogin.username.trim(),
+      });
+      useAppStore.setState(s => ({ stores: s.stores.map(st => st.id === updated.id ? updated : st) }));
+      setSelectedStore(updated);
+      await loadBackendUsers();
+      toast.success(`Login created — "${store.name}" now signs in with User ID "${accessLogin.username.trim()}"`);
+    } catch (e) {
+      toast.error((e as Error).message || 'Could not create the store login.');
+    } finally {
+      setAccessBusy(false);
+    }
+  };
+
+  const handleResetStorePassword = async (owner: User) => {
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      toast.error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`); return;
+    }
+    setAccessBusy(true);
+    try {
+      await mutations.adminResetUserPassword(owner.id, newPassword);
+      toast.success('Password updated — the store must sign in again with it.');
+      setNewPassword('');
+    } catch (e) {
+      toast.error((e as Error).message || 'Could not reset the password.');
+    } finally {
+      setAccessBusy(false);
+    }
   };
 
   return (
@@ -246,7 +363,7 @@ export const AdminStores: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => { setShowCreate(true); setForm(defaultForm); setSlugManuallyEdited(false); setFormErrors({}); }}
+            onClick={openCreate}
             className="btn-primary flex-shrink-0"
           >
             <Plus className="h-4 w-4" /> Create New Store
@@ -579,9 +696,30 @@ export const AdminStores: React.FC = () => {
 
               <div className="h-px bg-slate-100" />
 
-              {/* Section 4: Owner Assignment */}
+              {/* Section 4: Store Login / Owner Assignment */}
               <div>
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Owner Assignment</h3>
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Store Login</h3>
+                <div className="flex gap-1 bg-slate-100 rounded-lg p-1 mb-3">
+                  {([
+                    { key: 'new', label: 'Create store login' },
+                    { key: 'existing', label: 'Assign existing account' },
+                  ] as const).map(({ key, label }) => (
+                    <button key={key} type="button" onClick={() => setLoginMode(key)}
+                      className={clsx('flex-1 px-3 py-1.5 rounded-md text-xs font-semibold transition-all',
+                        loginMode === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {loginMode === 'new' ? (
+                  <>
+                    <StoreLoginFields value={storeLogin} onChange={v => { setStoreLogin(v); setLoginErrors({}); }} errors={loginErrors} />
+                    <p className="text-xs text-slate-400 mt-2">
+                      The {form.storeType === 'product' ? 'store' : 'service hub'} signs in with this User ID (or email) and password,
+                      and sees only its own dashboard, orders and reviews. Share the credentials with the store securely.
+                    </p>
+                  </>
+                ) : (<>
                 <select
                   className="input w-full"
                   value={form.ownerId}
@@ -597,6 +735,7 @@ export const AdminStores: React.FC = () => {
                 <p className="text-xs text-slate-400 mt-1">
                   Only {form.storeType === 'product' ? 'store owners' : 'service providers'} are shown
                 </p>
+                </>)}
               </div>
 
               <div className="h-px bg-slate-100" />
@@ -698,14 +837,19 @@ export const AdminStores: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-4 flex gap-3">
-              <button onClick={() => setShowCreate(false)} className="btn-secondary flex-1 justify-center">
-                Cancel
-              </button>
-              <button onClick={handleCreateStore} className="btn-primary flex-1 justify-center">
-                <Plus className="h-4 w-4" />
-                Create Store (Pending Activation)
-              </button>
+            <div className="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-4 space-y-2">
+              {createError && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{createError}</p>
+              )}
+              <div className="flex gap-3">
+                <button onClick={() => setShowCreate(false)} className="btn-secondary flex-1 justify-center">
+                  Cancel
+                </button>
+                <button onClick={handleCreateStore} disabled={creating} className="btn-primary flex-1 justify-center disabled:opacity-60">
+                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Create Store (Pending Activation)
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -775,6 +919,7 @@ export const AdminStores: React.FC = () => {
                 { key: 'overview', label: 'Overview', icon: Info },
                 { key: 'business', label: 'Business', icon: Building2 },
                 { key: 'banking', label: 'Banking', icon: CreditCard },
+                { key: 'access', label: 'Login Access', icon: KeyRound },
               ] as const).map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
@@ -852,6 +997,58 @@ export const AdminStores: React.FC = () => {
                   ))}
                 </div>
               )}
+
+              {/* Login Access Tab */}
+              {detailTab === 'access' && (() => {
+                const owner = storeOwner(selectedStore);
+                if (owner) {
+                  return (
+                    <div className="space-y-3">
+                      {[
+                        { label: 'Signs in as', value: owner.name },
+                        { label: 'User ID', value: owner.username ?? '— (email login only)' },
+                        { label: 'Login Email', value: owner.email },
+                        { label: 'Account Type', value: owner.role === 'service_provider' ? 'Service Hub account' : 'Store account' },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="bg-slate-50 rounded-lg p-3">
+                          <p className="text-xs text-slate-500 mb-0.5">{label}</p>
+                          <p className="font-semibold text-slate-900 text-sm font-mono break-all">{value}</p>
+                        </div>
+                      ))}
+                      <div className="border border-slate-200 rounded-xl p-4">
+                        <p className="text-sm font-semibold text-slate-800 mb-1">Reset password</p>
+                        <p className="text-xs text-slate-500 mb-3">Signs the store out everywhere; share the new password with it securely.</p>
+                        <div className="flex gap-2">
+                          <input className="input flex-1 font-mono" type="text" placeholder={`New password (min ${MIN_PASSWORD_LENGTH})`}
+                            value={newPassword} onChange={e => setNewPassword(e.target.value)} autoComplete="new-password" />
+                          <button type="button" onClick={() => setNewPassword(generatePassword())}
+                            className="px-2.5 rounded-lg border border-slate-200 text-slate-500 hover:text-indigo-600" title="Generate password">
+                            <RefreshCw className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <button onClick={() => handleResetStorePassword(owner)} disabled={accessBusy || !newPassword}
+                          className="btn-primary w-full justify-center mt-3 disabled:opacity-50">
+                          {accessBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />} Set New Password
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-400">To block this store from signing in, suspend its account from User Management.</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                      <span>This store has no login of its own — it is currently held by an admin account. Create one so the store can sign in and manage its own orders.</span>
+                    </div>
+                    <StoreLoginFields value={accessLogin} onChange={v => { setAccessLogin(v); setAccessErrors({}); }} errors={accessErrors} />
+                    <button onClick={() => handleCreateStoreLogin(selectedStore)} disabled={accessBusy}
+                      className="btn-primary w-full justify-center disabled:opacity-60">
+                      {accessBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />} Create Store Login
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* Rejection reason if suspended */}
               {selectedStore.status === 'suspended' && selectedStore.rejectionReason && (

@@ -32,9 +32,11 @@ export const Login: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) { setError('Email address is required.'); return; }
+    if (!email.trim()) { setError('Email address or User ID is required.'); return; }
     if (!password) { setError('Password is required.'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('Please enter a valid email address.'); return; }
+    // Store accounts sign in with a User ID (never contains '@'); anything with
+    // an '@' must be a well-formed email.
+    if (email.includes('@') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('Please enter a valid email address.'); return; }
 
     setError('');
     setIsLoading(true);
@@ -121,15 +123,17 @@ export const Login: React.FC = () => {
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Email Address <span className="text-red-500">*</span>
+                Email Address or User ID <span className="text-red-500">*</span>
               </label>
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={e => { setEmail(e.target.value); setError(''); }}
                 className="input"
-                placeholder="you@example.com"
-                autoComplete="email"
+                placeholder="you@example.com or store User ID"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
               />
             </div>
 

@@ -11,6 +11,7 @@ import {
   Briefcase, CalendarCheck, IndianRupee, Clock,
   PlusCircle, ListOrdered, MapPin, TrendingUp,
 } from 'lucide-react';
+import { ReceivedReviews } from '../../components/ReceivedReviews';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -327,6 +328,8 @@ export const ServiceProviderDashboard: React.FC = () => {
             ))}
           </div>
         )}
+
+        <ReceivedReviews />
       </div>
     </AppLayout>
   );

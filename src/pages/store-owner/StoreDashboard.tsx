@@ -11,6 +11,7 @@ import { formatCurrency, formatDate, computeMonthlyRevenue } from '../../data/mo
 import { useAppStore } from '../../store/useAppStore';
 import { ProductImage } from '../../components/ui/ProductImage';
 import { IndianRupee, ShoppingCart, TrendingUp, Wallet } from 'lucide-react';
+import { ReceivedReviews } from '../../components/ReceivedReviews';
 
 export const StoreDashboard: React.FC = () => {
   const { currentUser, stores, orders, products, loadingData, supabaseReady } = useAppStore();
@@ -205,6 +206,8 @@ export const StoreDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <ReceivedReviews />
       </div>
     </AppLayout>
   );
