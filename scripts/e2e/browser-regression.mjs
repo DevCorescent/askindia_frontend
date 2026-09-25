@@ -246,6 +246,41 @@ await page.waitForLoadState('networkidle');
 const refused = apiLog.slice(mCheckout).filter(e => e.status === 401 || e.status === 403);
 ok('checkout makes no refused (401/403) API calls', refused.length === 0, JSON.stringify(refused));
 
+// 5c. A saved cart with a stale demo item ("demo_p1") is cleaned on load
+await page.goto(`${APP}/shop/product/${productId}`);
+await page.getByRole('button', { name: /Add to Cart/ }).first().click();
+await page.waitForTimeout(300);
+await page.evaluate(() => {
+  const saved = JSON.parse(localStorage.getItem('askindia-store'));
+  const real = saved.state.cart[0];
+  saved.state.cart.push({ product: { ...real.product, id: 'demo_p1', name: 'Wireless Bluetooth Earbuds' }, quantity: 1 });
+  localStorage.setItem('askindia-store', JSON.stringify(saved));
+});
+await page.goto(`${APP}/shop/cart`);
+await page.waitForLoadState('networkidle');
+const cartIds = await page.evaluate(() => JSON.parse(localStorage.getItem('askindia-store')).state.cart.map(i => i.product.id));
+ok('F. stale demo_p1 removed from the restored cart, real item kept',
+  !(await page.getByText('Wireless Bluetooth Earbuds').isVisible()) && await page.getByText('Masala Chai Pack').first().isVisible(),
+  JSON.stringify(cartIds));
+await page.goto(`${APP}/shop/checkout`);
+// The earlier checkout saved this customer's address: checkout lists it and
+// offers "add a new one" — enter the address again as a returning customer would.
+await page.locator('input[placeholder="First name"], button:has-text("add a new one")').first().waitFor();
+if (!(await page.getByPlaceholder('First name').isVisible())) await page.getByRole('button', { name: 'add a new one' }).click();
+await page.getByPlaceholder('First name').fill('UI');
+await page.getByPlaceholder('Last name').fill('Customer');
+await page.getByPlaceholder('House / Flat / Block no., Building name').fill('12 MG Road');
+await page.getByPlaceholder('City').fill('Pune');
+await page.getByPlaceholder('400001').fill('411001');
+await page.getByRole('button', { name: /Continue to Payment/ }).click();
+await page.getByText('Cash on Delivery').click();
+const beforeClean = (await api('GET', '/orders', undefined, cust.accessToken)).data;
+await page.getByRole('button', { name: /Place Order/ }).click();
+const placed = await visibleSoon(page.getByText('Order Placed Successfully!'));
+const newOrder = (await api('GET', '/orders', undefined, cust.accessToken)).data.find(o => !beforeClean.some(b => b.id === o.id));
+ok('G. checkout with the cleaned cart succeeds with only real items', placed && !!newOrder
+  && newOrder.items.every(i => i.productId === productId), JSON.stringify(newOrder?.items?.map(i => i.productId)));
+
 // 6. Store sees the review on its dashboard
 await uiLogin(USERNAME, password);
 await page.waitForTimeout(1000);

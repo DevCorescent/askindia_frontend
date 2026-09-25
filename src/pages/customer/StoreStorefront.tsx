@@ -542,13 +542,15 @@ export const StoreStorefront: React.FC = () => {
                     </div>
 
                     {!currentUser ? (
-                      <Link
-                        to="/login"
-                        onClick={e => e.stopPropagation()}
+                      // A button, not a Link: the whole card is already a link,
+                      // and a link inside a link is invalid HTML.
+                      <button
+                        type="button"
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); navigate('/login'); }}
                         className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
                       >
                         Login to Buy
-                      </Link>
+                      </button>
                     ) : (
                       <button
                         onClick={e => { e.preventDefault(); e.stopPropagation(); if (isAvailable) handleAddToCart(product); }}

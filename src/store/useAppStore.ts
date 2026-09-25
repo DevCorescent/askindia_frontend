@@ -238,6 +238,9 @@ const demoStore: Store = {
   contactPhone: '9876543210',
 };
 
+// Real (database) product ids are UUIDs; the built-in demo products are not.
+const PRODUCT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const demoProducts: Product[] = [
   {
     id: 'demo_p1', name: 'Wireless Bluetooth Earbuds',
@@ -651,9 +654,12 @@ export const useAppStore = create<AppState>()(
       // Demo-seed fallback: shown until the backend responds. When the backend
       // loads successfully these are overwritten; if it's unreachable (e.g. API
       // server down in local dev) the storefront still has data instead of being empty.
-      products: demoProducts,
+      // Real products and services always come from the API. The built-in demo
+      // lists (ids like "demo_p1") are for mock mode only: shown in a real
+      // session they could be added to the cart and ordered.
+      products: isSupabaseConfigured ? [] : demoProducts,
       stores: [],
-      services: demoServices,
+      services: isSupabaseConfigured ? [] : demoServices,
       orders: [],
       serviceOrders: [],
       withdrawalRequests: [],
@@ -1488,6 +1494,16 @@ export const useAppStore = create<AppState>()(
         return result;
       },
       storage: createJSONStorage(() => localStorage),
+      // Runs on every restore (migrate only runs on a version change). Same
+      // shallow merge as the default, but a saved cart keeps only real products:
+      // a stale demo item ("demo_p1") would otherwise fail at checkout.
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<AppState>;
+        const cart = isSupabaseConfigured && Array.isArray(saved.cart)
+          ? saved.cart.filter(item => PRODUCT_ID_RE.test(item?.product?.id ?? ''))
+          : saved.cart;
+        return { ...current, ...saved, ...(cart ? { cart } : {}) };
+      },
       partialize: (state) => ({
         // Persisted across refreshes
         currentUser: state.currentUser,

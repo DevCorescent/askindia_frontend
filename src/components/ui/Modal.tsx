@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -25,18 +26,25 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  // Rendered into <body>: a transformed ancestor (animations, hover lifts) would
+  // otherwise become the reference for `fixed` and pull the dialog off-centre.
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative w-full ${sizes[size]} bg-white rounded-2xl shadow-2xl animate-slide-up`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+      {/* Never taller than the window: the header stays put and the body scrolls,
+          so tall content (e.g. order details on a 13" laptop) is never cut off. */}
+      <div
+        className={`relative w-full ${sizes[size]} max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-white rounded-2xl shadow-2xl animate-slide-up`}
+      >
+        <div className="flex flex-shrink-0 items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };

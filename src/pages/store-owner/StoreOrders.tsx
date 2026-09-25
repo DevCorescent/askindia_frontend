@@ -257,7 +257,7 @@ export const StoreOrders: React.FC = () => {
                 {/* The store's next fulfilment action */}
                 <div className="mt-4 pt-4 border-t border-slate-200 space-y-3">
                   {selectedOrder.status === 'processing' && (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input className="input text-sm" placeholder="Tracking number (optional)"
                         value={trackingNumber} onChange={e => setTrackingNumber(e.target.value)} />
                       <input className="input text-sm" placeholder="Courier (optional)"
@@ -303,8 +303,8 @@ export const StoreOrders: React.FC = () => {
               </p>
               <OrderTimeline orderId={selectedOrder.id} kind="product" status={selectedOrder.status} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-50 rounded-xl p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-slate-50 rounded-xl p-4 min-w-0 break-words">
                 <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Customer</p>
                 <p className="font-semibold">{selectedOrder.customerName}</p>
                 {selectedOrder.customerEmail && <p className="text-xs text-slate-500">{selectedOrder.customerEmail}</p>}
@@ -318,15 +318,15 @@ export const StoreOrders: React.FC = () => {
             </div>
             <div className="space-y-2">
               {selectedOrder.items.map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <ProductImage product={itemVisual(item)} emojiClass="text-base" className="w-9 h-9 rounded-lg" />
-                    <div>
+                <div key={i} className="flex items-center justify-between gap-3 p-3 bg-slate-50 rounded-lg">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <ProductImage product={itemVisual(item)} emojiClass="text-base" className="w-9 h-9 rounded-lg flex-shrink-0" />
+                    <div className="min-w-0 break-words">
                       <p className="text-sm font-medium">{item.productName}</p>
                       <p className="text-xs text-slate-500">Qty: {item.quantity}</p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     <p className="font-semibold text-sm">{formatCurrency(item.price * item.quantity)}</p>
                     <p className="text-xs text-emerald-600">Your earn: {formatCurrency(item.price * item.quantity * item.commission / 100)}</p>
                   </div>
