@@ -98,10 +98,10 @@ export const authService = {
     catch { return { otpEnabled: false }; }
   },
 
-  async requestPasswordOtp(identifier: string): Promise<{ success: boolean; message?: string; devOtp?: string; error?: string }> {
+  async requestPasswordOtp(identifier: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
-      const data = await api.post<{ message: string; devOtp?: string }>('/auth/forgot-password/otp', { identifier });
-      return { success: true, message: data.message, devOtp: data.devOtp };
+      const data = await api.post<{ message: string }>('/auth/forgot-password/otp', { identifier });
+      return { success: true, message: data.message };
     } catch (e) {
       return { success: false, error: (e as Error).message };
     }

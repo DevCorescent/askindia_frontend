@@ -717,6 +717,12 @@ export const useAppStore = create<AppState>()(
 
       loadFromSupabase: async (userId, role, storeId) => {
         set({ loadingData: true });
+        // The agent list, activity log and abandoned carts are admin-only APIs:
+        // other roles would only collect 403s and keep the demo seed data in
+        // those slices, so they get empty lists without asking. An agent still
+        // loads its own record.
+        const isAdmin = role === 'admin';
+        const none = <T,>(): Promise<T[]> => Promise.resolve([]);
         try {
           const [
             homepageRes, productsRes, servicesRes, storesRes,
@@ -730,10 +736,10 @@ export const useAppStore = create<AppState>()(
             dataLoaders.loadOrders(role, userId, storeId ?? undefined),
             dataLoaders.loadServiceOrders(role, userId),
             dataLoaders.loadNotifications(userId),
-            dataLoaders.loadAgents(role, userId),
+            isAdmin || role === 'agent' ? dataLoaders.loadAgents(role, userId) : none<Agent>(),
             dataLoaders.loadWithdrawalRequests(role !== 'admin' ? userId : undefined),
-            dataLoaders.loadUserActivities(),
-            dataLoaders.loadAbandonedCarts(),
+            isAdmin ? dataLoaders.loadUserActivities() : none<UserActivity>(),
+            isAdmin ? dataLoaders.loadAbandonedCarts() : none<AbandonedCart>(),
             dataLoaders.loadCustomRoles(),
           ]);
 

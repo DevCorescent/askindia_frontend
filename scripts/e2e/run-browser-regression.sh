@@ -35,4 +35,8 @@ VITE_PID=$!
 disown "$VITE_PID"  # cleanup kills it; keeps bash from printing "Terminated"
 for _ in $(seq 1 60); do curl -sf "$TEST_APP_URL" >/dev/null && break; sleep 1; done
 
+echo "== PASSWORD_RESET_OTP_ENABLED=false"
 node "$FRONTEND_DIR/scripts/e2e/browser-regression.mjs"
+echo; echo "== PASSWORD_RESET_OTP_ENABLED=true"
+start_api true
+PHASE=otp node "$FRONTEND_DIR/scripts/e2e/browser-regression.mjs"

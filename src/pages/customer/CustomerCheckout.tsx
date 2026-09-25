@@ -222,20 +222,12 @@ export const CustomerCheckout: React.FC = () => {
 
     try {
       if (hasRealSession) {
+        let dbId: string | undefined;
         try {
-          const dbId = await mutations.createOrder({ ...orderData, paymentStatus: initialPaymentStatus });
+          dbId = await mutations.createOrder({ ...orderData, paymentStatus: initialPaymentStatus });
           orderIdRef.current = dbId;
           addOrder({ ...orderData, paymentStatus: initialPaymentStatus }, dbId);
-
-          // Notify store owner — fire-and-forget
-          if (UUID_RE.test(targetStore?.ownerId ?? '')) {
-            mutations.createNotification(targetStore!.ownerId, {
-              type:    'order',
-              title:   'New Order Received',
-              message: `Order #${dbId} · ${formatCurrency(total)} from ${orderData.customerName}`,
-              link:    '/store/orders',
-            }).catch(() => {});
-          }
+          // The backend notifies the store owner when it creates the order.
 
           saveAddress(currentUser!.id, {
             firstName, lastName, phone,
@@ -261,6 +253,10 @@ export const CustomerCheckout: React.FC = () => {
           }
 
         } catch (dbErr) {
+          // No order in the database means nothing was placed: the store would
+          // never see it. Report the failure and keep the cart instead of
+          // confirming an order that exists only in this browser.
+          if (!dbId) throw dbErr;
           console.warn('[Checkout] DB write failed, saving locally:', dbErr);
           addOrder(orderData, localId);
           if (currentUser?.id) {
@@ -289,7 +285,7 @@ export const CustomerCheckout: React.FC = () => {
       setTimeout(() => { clearCart(); }, 500);
     } catch (err) {
       console.error('[Checkout] Order failed:', err);
-      setPlaceError('Failed to place order. Please try again.');
+      setPlaceError(`Failed to place order: ${(err as Error).message || 'please try again.'} Your cart has been kept.`);
     } finally {
       setPlacing(false);
     }

@@ -1,9 +1,11 @@
 // Browser regression for store access, store order workflow, customer
-// tracking/reviews and the forgot-password page. Run it through
+// tracking/reviews and the forgot-password page. PHASE=otp runs the
+// PASSWORD_RESET_OTP_ENABLED=true recovery flow instead. Run it through
 // run-browser-regression.sh, which starts the backend's throwaway test stack
 // (local DB + API) and a Vite dev server; never point it at a real environment.
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { existsSync, readFileSync } from 'node:fs';
 
 const APP = process.env.TEST_APP_URL;
 const API = process.env.TEST_API_URL;
@@ -31,8 +33,20 @@ const page = await ctx.newPage();
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 
+// Every API response the page receives, to catch calls a role must not make.
+const ADMIN_ONLY = /^\/api\/v1\/(agents|analytics\/activities|analytics\/abandoned-carts)$/;
+const apiLog = [];
+const simulated = new WeakSet(); // requests the test answers itself (page.route)
+page.on('response', r => {
+  if (simulated.has(r.request())) return;
+  const u = new URL(r.url());
+  if (u.pathname.startsWith('/api/v1/')) apiLog.push({ path: u.pathname, status: r.status() });
+});
+const mark = () => apiLog.length;
+const adminOnlySince = (m) => apiLog.slice(m).filter(e => ADMIN_ONLY.test(e.path));
+
 const results = [];
-const ok = (name, cond) => { results.push(`${cond ? '✔' : '✘'} ${name}`); console.log(`${cond ? '✔' : '✘'} ${name}`); };
+const ok = (name, cond, detail = '') => { results.push(`${cond ? '✔' : '✘'} ${name}`); console.log(`${cond ? '✔' : '✘'} ${name}${!cond && detail ? ` — ${detail}` : ''}`); };
 const shot = (n) => (SHOTS ? page.screenshot({ path: `${SHOTS}/${n}.png`, fullPage: false }) : Promise.resolve());
 async function uiLogin(id, pw) {
   await page.evaluate(() => localStorage.clear());
@@ -45,10 +59,65 @@ async function uiLogin(id, pw) {
 }
 const api = async (method, path, body, token) => (await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: body && JSON.stringify(body) })).json();
 
+// Mail captured by the backend's local SMTP sink (quoted-printable decoded).
+function mailsTo(address, subject) {
+  const file = process.env.MAIL_SINK_FILE;
+  if (!file || !existsSync(file)) return [];
+  return readFileSync(file, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
+    .filter(m => m.to.includes(address) && subject.test(m.data))
+    .map(m => m.data.replace(/=\n/g, '').replace(/=([0-9A-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))));
+}
+const otpFromMail = (address) => mailsTo(address, /Subject: Your AskIndia password reset code/).at(-1)?.match(/reset code is (\d{6})/)?.[1];
+const visibleSoon = (locator) => locator.waitFor({ timeout: 8000 }).then(() => true, () => false);
+
+async function finish() {
+  console.log(errors.length ? `page errors:\n${errors.join('\n')}` : 'no page errors');
+  await browser.close();
+  const passed = results.filter(r => r.startsWith('✔')).length;
+  console.log(`\n${passed}/${results.length} passed`);
+  process.exit(passed !== results.length || errors.length ? 1 : 0);
+}
+
+if (process.env.PHASE === 'otp') {
+  // PASSWORD_RESET_OTP_ENABLED=true: Forgot password → emailed code → new password.
+  const email = `otp_ui_${RUN}@test.io`;
+  await api('POST', '/auth/signup', { email, password: 'OldPass123', name: 'OTP UI', role: 'customer' });
+  await page.goto(`${APP}/login`);
+  const forgot = page.getByRole('button', { name: 'Forgot password?' });
+  ok('login page shows "Forgot password?" (OTP on)', await visibleSoon(forgot));
+  await forgot.click();
+  ok('forgot-password shows the OTP flow', await visibleSoon(page.getByRole('button', { name: 'Send Code' }))
+    && !(await page.getByRole('button', { name: 'Send Reset Link' }).isVisible()));
+  await shot('20-otp-request');
+  await page.getByPlaceholder('you@example.com or User ID').fill(email);
+  await page.getByRole('button', { name: 'Send Code' }).click();
+  await page.getByPlaceholder('••••••').waitFor();
+  const code = otpFromMail(email);
+  ok('code arrives by email', /^\d{6}$/.test(code ?? ''));
+  ok('code is not shown on the page', !!code && !(await page.content()).includes(code));
+  await shot('21-otp-verify');
+  await page.getByPlaceholder('••••••').fill(code === '000000' ? '111111' : '000000');
+  await page.getByRole('button', { name: 'Verify Code' }).click();
+  ok('wrong code rejected', await visibleSoon(page.getByText('Invalid or expired code')));
+  await page.getByPlaceholder('••••••').fill(code);
+  await page.getByRole('button', { name: 'Verify Code' }).click();
+  await page.waitForURL(u => u.pathname === '/reset-password', { timeout: 10000 });
+  await page.getByPlaceholder(/Minimum \d+ characters/).fill('NewOtpPass123');
+  await page.getByPlaceholder('Re-enter new password').fill('NewOtpPass123');
+  await page.getByRole('button', { name: 'Reset Password' }).click();
+  ok('password reset after correct code', await visibleSoon(page.getByText('Password Reset Complete')));
+  await uiLogin(email, 'NewOtpPass123');
+  ok('customer logs in with the new password', page.url().endsWith('/shop'));
+  await finish();
+}
+
 // 1. Admin creates a store with its own login from the UI
 await page.goto(APP);
+let m0 = mark();
 await uiLogin('admin@test.io', 'AdminPass123');
 ok('admin lands on /admin', page.url().endsWith('/admin'));
+ok('admin still loads agents / activities / abandoned carts (200)',
+  adminOnlySince(m0).length >= 3 && adminOnlySince(m0).every(e => e.status === 200));
 await page.goto(`${APP}/admin/stores`);
 await page.getByRole('button', { name: /create new store/i }).click();
 await page.getByPlaceholder("e.g. Rahul's Electronics Hub").fill(`UI Store ${RUN}`);
@@ -79,8 +148,10 @@ await page.waitForTimeout(800);
 
 
 // 2. Store logs in with User ID
+m0 = mark();
 await uiLogin(USERNAME, password);
 ok('store login with User ID lands on /store', page.url().endsWith('/store'));
+ok('store login makes no admin-only API calls (no 403s)', adminOnlySince(m0).length === 0, JSON.stringify(adminOnlySince(m0)));
 await page.waitForTimeout(800);
 await shot('04-store-dashboard');
 ok('store dashboard shows Customer Reviews card', await page.getByText('Customer Reviews').isVisible());
@@ -122,7 +193,9 @@ await shot('06-store-order-details-timeline');
 ok('store detail shows status history', await page.getByText('Status History').isVisible());
 
 // 5. Customer tracks and reviews
+m0 = mark();
 await uiLogin(email, 'CustPass123');
+ok('customer login makes no admin-only API calls (no 403s)', adminOnlySince(m0).length === 0, JSON.stringify(adminOnlySince(m0)));
 await page.goto(`${APP}/shop/orders`);
 await page.waitForLoadState('networkidle');
 await page.waitForTimeout(800);
@@ -143,21 +216,67 @@ await page.getByRole('button', { name: 'Submit Review' }).click();
 await page.waitForTimeout(1000);
 ok('customer order shows Reviewed', await page.getByText('Reviewed').first().isVisible());
 
+// 5b. Checkout: a failed order write must not confirm the order or empty the cart
+const mCheckout = mark();
+await page.goto(`${APP}/shop/product/${productId}`);
+await page.getByRole('button', { name: /Add to Cart/ }).first().click();
+await page.goto(`${APP}/shop/checkout`);
+await page.getByPlaceholder('First name').fill('UI');
+await page.getByPlaceholder('Last name').fill('Customer');
+await page.getByPlaceholder('House / Flat / Block no., Building name').fill('12 MG Road');
+await page.getByPlaceholder('City').fill('Pune');
+await page.getByPlaceholder('400001').fill('411001');
+await page.getByRole('button', { name: /Continue to Payment/ }).click();
+await page.getByText('Cash on Delivery').click();
+const ordersBefore = (await api('GET', '/orders', undefined, cust.accessToken)).data.length;
+const failOrderCreate = (route) => route.request().method() === 'POST'
+  ? (simulated.add(route.request()), route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Simulated database failure' }) }))
+  : route.continue();
+await page.route(`${API}/orders`, failOrderCreate);
+await page.getByRole('button', { name: /Place Order/ }).click();
+ok('failed order write shows the error, not a confirmation',
+  await visibleSoon(page.getByText(/Failed to place order: Simulated database failure/))
+  && !(await page.getByText('Order Placed Successfully!').isVisible()));
+await shot('09b-checkout-failed');
+await page.unroute(`${API}/orders`, failOrderCreate);
+await page.getByRole('button', { name: /Place Order/ }).click();
+ok('retry with the kept cart places a real order', await visibleSoon(page.getByText('Order Placed Successfully!'))
+  && (await api('GET', '/orders', undefined, cust.accessToken)).data.length === ordersBefore + 1);
+await page.waitForLoadState('networkidle');
+const refused = apiLog.slice(mCheckout).filter(e => e.status === 401 || e.status === 403);
+ok('checkout makes no refused (401/403) API calls', refused.length === 0, JSON.stringify(refused));
+
 // 6. Store sees the review on its dashboard
 await uiLogin(USERNAME, password);
 await page.waitForTimeout(1000);
 ok('store dashboard lists the review', await page.getByText('Loved it!').isVisible());
 await shot('10-store-dashboard-review');
 
-// 7. Forgot password (OTP off → original link page)
+// 7. Forgot password (OTP off → reset-link flow, still reachable from login)
 await page.evaluate(() => localStorage.clear());
-await page.goto(`${APP}/forgot-password`);
-await page.waitForTimeout(600);
-ok('forgot-password shows existing link flow (OTP disabled)', await page.getByRole('button', { name: 'Send Reset Link' }).isVisible());
+await page.goto(`${APP}/login`);
+const forgotLink = page.getByRole('button', { name: 'Forgot password?' });
+ok('login page shows "Forgot password?" (OTP off)', await visibleSoon(forgotLink));
+await forgotLink.click();
+ok('forgot-password shows existing link flow (OTP disabled)', await visibleSoon(page.getByRole('button', { name: 'Send Reset Link' })));
 await shot('11-forgot-password');
+await page.getByPlaceholder('you@example.com').fill('admin@test.io');
+await page.getByRole('button', { name: 'Send Reset Link' }).click();
+ok('reset link emailed, no OTP sent', await visibleSoon(page.getByText('Check your inbox'))
+  && mailsTo('admin@test.io', /Subject: Reset your AskIndia password/).length > 0
+  && mailsTo('admin@test.io', /Subject: Your AskIndia password reset code/).length === 0);
 
-console.log(errors.length ? `page errors:\n${errors.join('\n')}` : 'no page errors');
-await browser.close();
-const passed = results.filter(r => r.startsWith('✔')).length;
-console.log(`\n${passed}/${results.length} passed`);
-if (passed !== results.length || errors.length) process.exit(1);
+// 8. PWA manifest icons exist and are real PNGs of the declared size
+const manifest = await (await fetch(`${APP}/site.webmanifest`)).json();
+const iconChecks = await Promise.all([...manifest.icons.map(i => i.src), '/apple-touch-icon.png'].map(async (src) => {
+  const res = await fetch(APP + src);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const png = buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  const declared = manifest.icons.find(i => i.src === src)?.sizes;
+  const size = png ? `${buf.readUInt32BE(16)}x${buf.readUInt32BE(20)}` : '';
+  return res.status === 200 && png && (!declared || declared === size) ? null : `${src} (${res.status}, png=${png}, ${size})`;
+}));
+ok('manifest + apple-touch icons load as valid PNGs of the declared size', iconChecks.every(c => c === null), iconChecks.filter(Boolean).join('; '));
+ok('no API 5xx during the run', !apiLog.some(e => e.status >= 500), JSON.stringify(apiLog.filter(e => e.status >= 500)));
+
+await finish();

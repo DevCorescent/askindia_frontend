@@ -12,10 +12,10 @@ const ErrorNote: React.FC<{ message: string }> = ({ message }) => (
 );
 
 /**
- * Final-stage recovery: Email/User ID → email OTP → verify → reset password.
- * Only rendered when the backend reports PASSWORD_RESET_OTP_ENABLED; the
- * verified code is exchanged for a normal reset token and handed to the
- * existing /reset-password page.
+ * OTP recovery: Email/User ID → emailed code → verify → reset password.
+ * Rendered when the backend reports PASSWORD_RESET_OTP_ENABLED=true. The code
+ * only ever travels by email; the verified code is exchanged for a normal
+ * reset token and handed to the existing /reset-password page.
  */
 const OtpRecovery: React.FC = () => {
   const navigate = useNavigate();
@@ -24,12 +24,11 @@ const OtpRecovery: React.FC = () => {
   const [identifier, setIdentifier] = useState('');
   const [otp, setOtp] = useState('');
   const [info, setInfo] = useState('');
-  const [devOtp, setDevOtp] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const switchMode = (next: 'password' | 'username') => {
-    setMode(next); setStep('identify'); setError(''); setInfo(''); setDevOtp(''); setOtp('');
+    setMode(next); setStep('identify'); setError(''); setInfo(''); setOtp('');
   };
 
   const submitIdentify = async (e: React.FormEvent) => {
@@ -48,7 +47,6 @@ const OtpRecovery: React.FC = () => {
     if (!result.success) { setError(result.error ?? 'Something went wrong. Please try again.'); return; }
     setInfo(result.message ?? '');
     if (mode === 'username') { setStep('done'); return; }
-    setDevOtp((result as { devOtp?: string }).devOtp ?? '');
     setStep('verify');
   };
 
@@ -117,12 +115,6 @@ const OtpRecovery: React.FC = () => {
         </form>
       ) : (
         <form onSubmit={submitOtp} className="space-y-5">
-          {devOtp && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-              <p className="font-semibold">⚠ Development Mode</p>
-              No email service is configured — your code is <span className="font-mono font-bold">{devOtp}</span> (never shown in production).
-            </div>
-          )}
           <input
             type="text"
             inputMode="numeric"
@@ -160,7 +152,7 @@ const OtpRecovery: React.FC = () => {
 };
 
 export const ForgotPassword: React.FC = () => {
-  // OTP recovery is a final-stage feature; the backend flag decides when it shows.
+  // The backend's PASSWORD_RESET_OTP_ENABLED picks the flow: emailed code or reset link.
   const [otpEnabled, setOtpEnabled] = useState(false);
   useEffect(() => {
     let cancelled = false;
