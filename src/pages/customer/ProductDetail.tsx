@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { ProductImage } from '../../components/ui/ProductImage';
+import { ProductReviewForm } from '../../components/ProductReviewForm';
 
 const TABS = ['Description', 'Specifications', 'Reviews', 'Warranty & Returns'] as const;
 type Tab = typeof TABS[number];
@@ -71,6 +72,16 @@ export const ProductDetail: React.FC = () => {
       .finally(() => { if (!cancelled) setLoadingReviews(false); });
     return () => { cancelled = true; };
   }, [id]);
+
+  // Re-fetch after a review is posted, keeping the current list on screen meanwhile.
+  const latestId = useRef(id);
+  latestId.current = id;
+  const refreshReviews = () => {
+    if (!id) return;
+    mutations.loadProductReviews(id)
+      .then(data => { if (latestId.current === id) setReviewData(data); })
+      .catch(() => { /* keep what is shown */ });
+  };
 
   const shopPath = currentUser?.role === 'customer' ? '/shop' : currentUser ? '/shop' : '/';
   // 'default' is the router's key for the first entry, i.e. the product URL was
@@ -438,50 +449,58 @@ export const ProductDetail: React.FC = () => {
                     <div className="flex justify-center py-6">
                       <Loader2 className="h-5 w-5 animate-spin text-slate-300" />
                     </div>
-                  ) : reviewCount === 0 ? (
-                    <div className="text-center py-6 space-y-1">
-                      <Star className="h-8 w-8 mx-auto fill-slate-100 text-slate-200" />
-                      <p className="text-sm font-medium text-slate-600">No reviews yet</p>
-                      <p className="text-xs text-slate-400">Reviews appear here once a buyer rates a delivered order.</p>
-                    </div>
                   ) : (
+                    // One stable position for the form, so it isn't remounted
+                    // when the first review turns the empty state into the list.
                     <div className="space-y-4">
-                      {/* Summary */}
-                      <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
-                        <div className="text-center">
-                          <p className="text-3xl font-bold text-slate-900 leading-none">{avgRating.toFixed(1)}</p>
-                          <p className="text-xs text-slate-400 mt-1">out of 5</p>
+                      {reviewCount === 0 ? (
+                        <div className="text-center py-6 space-y-1">
+                          <Star className="h-8 w-8 mx-auto fill-slate-100 text-slate-200" />
+                          <p className="text-sm font-medium text-slate-600">No reviews yet</p>
+                          <p className="text-xs text-slate-400">Reviews appear here once a buyer rates a delivered order.</p>
                         </div>
-                        <div className="space-y-1">
-                          <Stars value={avgRating} />
-                          <p className="text-xs text-slate-500">
-                            Based on {reviewCount} review{reviewCount !== 1 ? 's' : ''}
-                          </p>
+                      ) : (
+                        /* Summary */
+                        <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
+                          <div className="text-center">
+                            <p className="text-3xl font-bold text-slate-900 leading-none">{avgRating.toFixed(1)}</p>
+                            <p className="text-xs text-slate-400 mt-1">out of 5</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Stars value={avgRating} />
+                            <p className="text-xs text-slate-500">
+                              Based on {reviewCount} review{reviewCount !== 1 ? 's' : ''}
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      )}
+
+                      <ProductReviewForm productId={product.id} onReviewed={refreshReviews} />
 
                       {/* Individual reviews */}
-                      <div className="space-y-4">
-                        {reviewData!.reviews.map(r => (
-                          <div key={r.id} className="space-y-1.5">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div className="w-7 h-7 rounded-full bg-brand-50 text-brand-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                  {(r.customerName ?? 'A').charAt(0).toUpperCase()}
+                      {reviewCount > 0 && (
+                        <div className="space-y-4">
+                          {reviewData!.reviews.map(r => (
+                            <div key={r.id} className="space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="w-7 h-7 rounded-full bg-brand-50 text-brand-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                    {(r.customerName ?? 'A').charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="text-sm font-medium text-slate-800 truncate">
+                                    {r.customerName ?? 'Anonymous'}
+                                  </span>
                                 </div>
-                                <span className="text-sm font-medium text-slate-800 truncate">
-                                  {r.customerName ?? 'Anonymous'}
-                                </span>
+                                <span className="text-xs text-slate-400 flex-shrink-0">{formatDate(r.createdAt)}</span>
                               </div>
-                              <span className="text-xs text-slate-400 flex-shrink-0">{formatDate(r.createdAt)}</span>
+                              <Stars value={r.rating} className="h-3.5 w-3.5" />
+                              {r.reviewText && (
+                                <p className="text-sm text-slate-600 leading-relaxed">{r.reviewText}</p>
+                              )}
                             </div>
-                            <Stars value={r.rating} className="h-3.5 w-3.5" />
-                            {r.reviewText && (
-                              <p className="text-sm text-slate-600 leading-relaxed">{r.reviewText}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )
                 )}
