@@ -24,6 +24,27 @@ export function clearTokens(): void {
   } catch { /* SSR */ }
 }
 
+/** A non-2xx response; `message` is the backend's `error` field. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+/**
+ * Text safe to show a user for a failed request. 4xx errors carry messages the
+ * backend wrote for users (validation, duplicates); 5xx bodies can carry raw
+ * server/database errors, so those — and network failures — get `fallback`.
+ * The original error is still logged for debugging.
+ */
+export function userFacingError(e: unknown, fallback: string): string {
+  if (e instanceof ApiError && e.status < 500) return e.message || fallback;
+  if (e instanceof Error && !(e instanceof ApiError) && !(e instanceof TypeError)) return e.message || fallback;
+  console.error(e);
+  return fallback;
+}
+
 // Shared promise while a refresh is in flight — all concurrent 401s share it.
 let refreshing: Promise<string> | null = null;
 
@@ -69,7 +90,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(body.error ?? `HTTP ${res.status}`);
+    throw new ApiError(body.error ?? `HTTP ${res.status}`, res.status);
   }
 
   if (res.status === 204) return undefined as T;

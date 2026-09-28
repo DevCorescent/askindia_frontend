@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle, Circle, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Circle, XCircle, Loader2, AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { mutations } from '../lib/dataService';
+import { userFacingError } from '../api/client';
 import type { OrderStatusEvent } from '../types';
 
 // Customer-facing names for each status (the stored status keys are unchanged).
@@ -42,18 +43,41 @@ interface Props {
 export const OrderTimeline: React.FC<Props> = ({ orderId, kind, status }) => {
   const [events, setEvents] = useState<OrderStatusEvent[] | null>(null);
   const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setError('');
+    setEvents(null);
     const load = kind === 'product' ? mutations.loadOrderTracking : mutations.loadServiceOrderTracking;
     load(orderId)
-      .then(r => { if (!cancelled) setEvents(r.timeline); })
-      .catch(e => { if (!cancelled) setError((e as Error).message || 'Could not load tracking'); });
+      .then(r => { if (!cancelled) setEvents(r.timeline ?? []); })
+      .catch(e => { if (!cancelled) setError(userFacingError(e, 'Status history is unavailable right now.')); });
     return () => { cancelled = true; };
-  }, [orderId, kind, status]);
+  }, [orderId, kind, status, attempt]);
 
-  if (error) return <p className="text-xs text-red-500">{error}</p>;
+  const labels = kind === 'product' ? ORDER_STATUS_LABEL : SERVICE_STATUS_LABEL;
+
+  if (error) {
+    // The history couldn't be fetched; the order's own current status is still
+    // known, so show that rather than an empty or broken section.
+    return (
+      <div className="flex items-start gap-2 text-xs text-slate-500">
+        <AlertCircle className="h-4 w-4 flex-shrink-0 text-slate-400" />
+        <div>
+          <p>
+            Current status: <span className="font-semibold text-slate-700">{labels[status] ?? status}</span>
+          </p>
+          <p className="text-slate-400 mt-0.5">
+            {error}{' '}
+            <button type="button" onClick={() => setAttempt(a => a + 1)} className="text-brand-600 hover:text-brand-700 font-medium">
+              Retry
+            </button>
+          </p>
+        </div>
+      </div>
+    );
+  }
   if (!events) {
     return (
       <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -62,7 +86,16 @@ export const OrderTimeline: React.FC<Props> = ({ orderId, kind, status }) => {
     );
   }
 
-  const labels = kind === 'product' ? ORDER_STATUS_LABEL : SERVICE_STATUS_LABEL;
+  if (events.length === 0) {
+    // e.g. orders placed before status history was recorded.
+    return (
+      <p className="text-xs text-slate-500">
+        Current status: <span className="font-semibold text-slate-700">{labels[status] ?? status}</span>
+        <span className="block text-slate-400 mt-0.5">No status updates have been recorded for this order yet.</span>
+      </p>
+    );
+  }
+
   const flow = kind === 'product' ? PRODUCT_FLOW : SERVICE_FLOW;
   const reached = new Set(events.map(e => e.status));
   const ended = events.some(e => TERMINAL_FAIL.includes(e.status));

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAppStore } from '../../store/useAppStore';
 import { formatCurrency, formatDate } from '../../data/mockData';
@@ -41,6 +41,7 @@ const Stars: React.FC<{ value: number; className?: string }> = ({ value, classNa
 export const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { products, currentUser, addToCart, trackActivity } = useAppStore();
 
   const product = products.find(p => p.id === id);
@@ -72,6 +73,10 @@ export const ProductDetail: React.FC = () => {
   }, [id]);
 
   const shopPath = currentUser?.role === 'customer' ? '/shop' : currentUser ? '/shop' : '/';
+  // 'default' is the router's key for the first entry, i.e. the product URL was
+  // opened directly — there is no in-app page to go back to, so use the listing.
+  const hasInAppHistory = location.key !== 'default';
+  const goBack = () => (hasInAppHistory ? navigate(-1) : navigate(shopPath));
 
   if (!product) {
     return (
@@ -124,8 +129,17 @@ export const ProductDetail: React.FC = () => {
     <AppLayout title="Product Details">
       <div className="max-w-6xl mx-auto space-y-6">
 
+        <button
+          type="button"
+          onClick={goBack}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {hasInAppHistory ? 'Back' : 'Back to Marketplace'}
+        </button>
+
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-sm text-slate-400 flex-wrap">
+        <nav className="flex items-center gap-1.5 text-sm text-slate-400 flex-wrap -mt-3">
           <Link to={shopPath} className="hover:text-brand-600 transition-colors">All Products</Link>
           <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
           <span className="text-slate-500">{product.category}</span>
