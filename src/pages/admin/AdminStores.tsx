@@ -19,9 +19,15 @@ import { MIN_PASSWORD_LENGTH } from '../../constants/auth';
 import clsx from 'clsx';
 import { StoreLogo, isImageLogo } from '../../components/ui/StoreLogo';
 import { uploadImage } from '../../utils/imageUpload';
+import { userFacingError } from '../../api/client';
+import { INDIAN_STATES, citiesInState } from '../../data/cities';
+import { useCityRecords } from '../../hooks/useCities';
 
 const slugify = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+// City <select> value for a city that isn't in the list (typed in instead).
+const OTHER_CITY = '__other__';
 
 const PRESET_COLORS = ['#4f46e5', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626'];
 
@@ -86,6 +92,9 @@ export const AdminStores: React.FC = () => {
   const [loginErrors, setLoginErrors] = useState<StoreLoginErrors>({});
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const cityRecords = useCityRecords();
+  const [cityTyped, setCityTyped] = useState(false);
+  const stateCities = useMemo(() => citiesInState(cityRecords, form.state), [cityRecords, form.state]);
 
   // Login Access tab (store detail)
   const [accessLogin, setAccessLogin] = useState<StoreLoginInput>(emptyStoreLogin);
@@ -159,11 +168,19 @@ export const AdminStores: React.FC = () => {
     setFormErrors(prev => ({ ...prev, [key]: undefined }));
   };
 
+  // City options depend on the state, so a city from another state is cleared.
+  const setStoreState = (state: string) => {
+    setForm(prev => ({ ...prev, state, city: citiesInState(cityRecords, state).includes(prev.city) ? prev.city : '' }));
+    setCityTyped(false);
+    setFormErrors(prev => ({ ...prev, state: undefined, city: undefined }));
+  };
+
   const validateForm = (): boolean => {
     const errors: Partial<Record<keyof CreateFormData, string>> = {};
     if (!form.name.trim()) errors.name = 'Store name is required';
     if (!form.slug.trim()) errors.slug = 'Subdomain is required';
     if (!form.tagline.trim()) errors.tagline = 'Tagline is required';
+    if (!form.state.trim()) errors.state = 'State is required';
     if (!form.city.trim()) errors.city = 'City is required';
     const rate = Number(form.commissionRate);
     if (isNaN(rate) || rate < 0 || rate > 50) errors.commissionRate = 'Must be 0–50';
@@ -172,7 +189,7 @@ export const AdminStores: React.FC = () => {
   };
 
   const openCreate = () => {
-    setShowCreate(true); setForm(defaultForm); setSlugManuallyEdited(false); setFormErrors({});
+    setShowCreate(true); setForm(defaultForm); setSlugManuallyEdited(false); setFormErrors({}); setCityTyped(false);
     setLoginMode('new'); setStoreLogin(emptyStoreLogin); setLoginErrors({}); setCreateError('');
   };
 
@@ -201,6 +218,7 @@ export const AdminStores: React.FC = () => {
     setForm(defaultForm);
     setSlugManuallyEdited(false);
     setFormErrors({});
+    setCityTyped(false);
   };
 
   // Store + its own login in one backend call; not optimistic, so a duplicate
@@ -221,7 +239,7 @@ export const AdminStores: React.FC = () => {
       toast.success(`Store "${created.name}" created — it signs in with User ID "${storeLogin.username.trim()}"`);
       closeCreate();
     } catch (e) {
-      setCreateError((e as Error).message || 'Could not create the store.');
+      setCreateError(userFacingError(e, 'Could not create the store right now. Please try again later.'));
     } finally {
       setCreating(false);
     }
@@ -745,23 +763,46 @@ export const AdminStores: React.FC = () => {
                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Location & Contact</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">City <span className="text-red-500">*</span></label>
-                    <input
-                      className={clsx('input w-full', formErrors.city && 'border-red-400')}
-                      placeholder="Mumbai"
-                      value={form.city}
-                      onChange={e => setField('city', e.target.value)}
-                    />
-                    {formErrors.city && <p className="text-xs text-red-500 mt-1">{formErrors.city}</p>}
+                    <label className="block text-sm font-medium text-slate-700 mb-1">State <span className="text-red-500">*</span></label>
+                    <select
+                      className={clsx('input w-full', formErrors.state && 'border-red-400')}
+                      value={form.state}
+                      onChange={e => setStoreState(e.target.value)}
+                    >
+                      <option value="">Select state</option>
+                      {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    {formErrors.state && <p className="text-xs text-red-500 mt-1">{formErrors.state}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">State</label>
-                    <input
-                      className="input w-full"
-                      placeholder="Maharashtra"
-                      value={form.state}
-                      onChange={e => setField('state', e.target.value)}
-                    />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">City <span className="text-red-500">*</span></label>
+                    <select
+                      className={clsx('input w-full disabled:bg-slate-50 disabled:text-slate-400', formErrors.city && 'border-red-400')}
+                      value={cityTyped ? OTHER_CITY : form.city}
+                      disabled={!form.state}
+                      onChange={e => {
+                        const other = e.target.value === OTHER_CITY;
+                        setCityTyped(other);
+                        setField('city', other ? '' : e.target.value);
+                      }}
+                    >
+                      <option value="">Select city</option>
+                      {stateCities.map(c => <option key={c} value={c}>{c}</option>)}
+                      {!cityTyped && form.city && !stateCities.includes(form.city) && (
+                        <option value={form.city}>{form.city}</option>
+                      )}
+                      {form.state && <option value={OTHER_CITY}>Other (not listed)</option>}
+                    </select>
+                    {cityTyped && (
+                      <input
+                        className={clsx('input w-full mt-2', formErrors.city && 'border-red-400')}
+                        placeholder="Enter city name"
+                        value={form.city}
+                        onChange={e => setField('city', e.target.value)}
+                        autoFocus
+                      />
+                    )}
+                    {formErrors.city && <p className="text-xs text-red-500 mt-1">{formErrors.city}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Contact Email</label>

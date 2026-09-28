@@ -1,4 +1,4 @@
-import { api, setTokens, clearTokens, getAccessToken } from '../api/client';
+import { api, setTokens, clearTokens, getAccessToken, userFacingError } from '../api/client';
 import type {
   User, Product, Service, Store, Order, ServiceOrder, Agent,
   WithdrawalRequest, Notification, HomepageConfig, UserActivity,
@@ -20,6 +20,10 @@ function getRefreshToken(): string | null {
 // ════════════════════════════════════════════════════════════════════════════
 //  AUTH SERVICE
 // ════════════════════════════════════════════════════════════════════════════
+
+// Shown when a password/User ID recovery request fails server-side.
+const RECOVERY_UNAVAILABLE =
+  "We couldn't process your request right now. Please try again later or contact support.";
 
 export const authService = {
 
@@ -77,7 +81,7 @@ export const authService = {
       const data = await api.post<{ message: string; emailSent: boolean; devResetLink?: string }>('/auth/forgot-password', { email });
       return { success: true, message: data.message, emailSent: data.emailSent, devResetLink: data.devResetLink };
     } catch (e) {
-      return { success: false, error: (e as Error).message };
+      return { success: false, error: userFacingError(e, RECOVERY_UNAVAILABLE) };
     }
   },
 
@@ -86,7 +90,7 @@ export const authService = {
       const data = await api.post<{ message: string }>('/auth/reset-password', { token, newPassword });
       return { success: true, message: data.message };
     } catch (e) {
-      return { success: false, error: (e as Error).message };
+      return { success: false, error: userFacingError(e, RECOVERY_UNAVAILABLE) };
     }
   },
 
@@ -103,7 +107,7 @@ export const authService = {
       const data = await api.post<{ message: string; devOtp?: string }>('/auth/forgot-password/otp', { identifier });
       return { success: true, message: data.message, devOtp: data.devOtp };
     } catch (e) {
-      return { success: false, error: (e as Error).message };
+      return { success: false, error: userFacingError(e, RECOVERY_UNAVAILABLE) };
     }
   },
 
@@ -113,7 +117,7 @@ export const authService = {
       const data = await api.post<{ resetToken: string }>('/auth/forgot-password/verify-otp', { identifier, otp });
       return { success: true, resetToken: data.resetToken };
     } catch (e) {
-      return { success: false, error: (e as Error).message };
+      return { success: false, error: userFacingError(e, RECOVERY_UNAVAILABLE) };
     }
   },
 
@@ -122,7 +126,7 @@ export const authService = {
       const data = await api.post<{ message: string }>('/auth/forgot-username', { email });
       return { success: true, message: data.message };
     } catch (e) {
-      return { success: false, error: (e as Error).message };
+      return { success: false, error: userFacingError(e, RECOVERY_UNAVAILABLE) };
     }
   },
 };
