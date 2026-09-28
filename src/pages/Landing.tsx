@@ -92,6 +92,12 @@ const CITIES = [
   "Kochi",
 ];
 
+// Footer link-column entries that have a page; the rest stay placeholders.
+const FOOTER_LINK_HREF: Record<string, string> = {
+  "Terms of Use": "/terms",
+  "Contact Us": "/contact",
+};
+
 const TRUST_BADGES = [
   {
     icon: Truck,
@@ -2004,7 +2010,7 @@ export const Landing: React.FC = () => {
                   {col.links.map((l) => (
                     <a
                       key={l}
-                      href="#"
+                      href={FOOTER_LINK_HREF[l] ?? "#"}
                       className="block text-slate-400 text-sm hover:text-white transition-colors"
                     >
                       {l}
