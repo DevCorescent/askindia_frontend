@@ -53,6 +53,7 @@ export const AgentWallet: React.FC = () => {
   };
 
   return (
+    <>
     <AppLayout title="My Wallet">
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
@@ -245,5 +246,6 @@ export const AgentWallet: React.FC = () => {
       )}
     </AppLayout>
     {showAddMoney && <AddMoneyModal onClose={() => setShowAddMoney(false)} />}
+    </>
   );
 };

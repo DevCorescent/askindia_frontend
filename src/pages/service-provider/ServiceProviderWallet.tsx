@@ -113,6 +113,7 @@ export const ServiceProviderWallet: React.FC = () => {
     .slice(0, 10);
 
   return (
+    <>
     <AppLayout title="Wallet">
       <div className="space-y-5">
 
@@ -461,5 +462,6 @@ export const ServiceProviderWallet: React.FC = () => {
       </Modal>
     </AppLayout>
     {showAddMoney && <AddMoneyModal onClose={() => setShowAddMoney(false)} />}
+    </>
   );
 };

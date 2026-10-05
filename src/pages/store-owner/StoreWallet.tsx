@@ -76,6 +76,7 @@ export const StoreWallet: React.FC = () => {
   }
 
   return (
+    <>
     <AppLayout title="Wallet & Payouts">
       <div className="space-y-5">
         {/* Wallet balance */}
@@ -257,5 +258,6 @@ export const StoreWallet: React.FC = () => {
       </Modal>
     </AppLayout>
     {showAddMoney && <AddMoneyModal onClose={() => setShowAddMoney(false)} />}
+    </>
   );
 };
