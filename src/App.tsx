@@ -18,6 +18,9 @@ const RegisterServiceProvider = lazy(() => import('./pages/auth/RegisterServiceP
 const RegisterCustomer        = lazy(() => import('./pages/auth/RegisterCustomer').then(m => ({ default: m.RegisterCustomer })));
 const ForgotPassword          = lazy(() => import('./pages/auth/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
 const ResetPassword           = lazy(() => import('./pages/auth/ResetPassword').then(m => ({ default: m.ResetPassword })));
+const ContactUs               = lazy(() => import('./pages/public/ContactUs').then(m => ({ default: m.ContactUs })));
+const TermsAndConditions      = lazy(() => import('./pages/public/TermsAndConditions').then(m => ({ default: m.TermsAndConditions })));
+const RefundsPolicy           = lazy(() => import('./pages/public/RefundsPolicy').then(m => ({ default: m.RefundsPolicy })));
 
 // Admin
 const AdminDashboard  = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -125,6 +128,9 @@ export default function App() {
             <Route path="/login"                   element={<Login />} />
             <Route path="/forgot-password"         element={<ForgotPassword />} />
             <Route path="/reset-password"          element={<ResetPassword />} />
+            <Route path="/contact"                 element={<ContactUs />} />
+            <Route path="/terms"                   element={<TermsAndConditions />} />
+            <Route path="/refunds"                 element={<RefundsPolicy />} />
             <Route path="/register/store-owner"    element={<RegisterStoreOwner />} />
             <Route path="/register/service-provider" element={<RegisterServiceProvider />} />
             <Route path="/register/customer"       element={<RegisterCustomer />} />

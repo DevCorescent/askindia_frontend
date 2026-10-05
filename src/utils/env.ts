@@ -82,7 +82,7 @@ export const env = {
   legal: {
     privacy: import.meta.env.VITE_PRIVACY_POLICY_URL ?? '/privacy',
     terms:   import.meta.env.VITE_TERMS_URL           ?? '/terms',
-    refund:  import.meta.env.VITE_REFUND_POLICY_URL   ?? '/refund',
+    refund:  import.meta.env.VITE_REFUND_POLICY_URL   ?? '/refunds',
   },
 
   // ── SEO ────────────────────────────────────────────────────────

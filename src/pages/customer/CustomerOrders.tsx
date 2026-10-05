@@ -12,6 +12,8 @@ import { mutations } from '../../lib/dataService';
 import clsx from 'clsx';
 import { ProductImage, productPhoto } from '../../components/ui/ProductImage';
 import { OrderTimeline, ORDER_STATUS_LABEL } from '../../components/OrderTimeline';
+import { MAX_REVIEW_LENGTH, reviewErrorMessage } from '../../components/ProductReviewForm';
+import { ApiError } from '../../api/client';
 
 const TRACKING_STEPS = ['pending', 'processing', 'shipped', 'delivered'].map(key => ({ key, label: ORDER_STATUS_LABEL[key] }));
 
@@ -126,7 +128,8 @@ export const CustomerOrders: React.FC = () => {
       }
       return;
     }
-    if (!reviewOrder || !reviewProductId || reviewRating === 0) return;
+    // Product reviews need a comment (the backend requires it); service reviews don't.
+    if (!reviewOrder || !reviewProductId || reviewRating === 0 || !reviewText.trim()) return;
     setSubmittingReview(true);
     setReviewError('');
     try {
@@ -151,7 +154,11 @@ export const CustomerOrders: React.FC = () => {
         setReviewOrder(null);
       }
     } catch (e) {
-      setReviewError((e as Error).message || 'Could not save your review. Please try again.');
+      setReviewError(reviewErrorMessage(e));
+      // Already reviewed on the server: stop offering it here too.
+      if (e instanceof ApiError && e.status === 409) {
+        setReviewedKeys(prev => new Set(prev).add(reviewKey(reviewOrder.id, reviewProductId)));
+      }
     } finally {
       setSubmittingReview(false);
     }
@@ -624,12 +631,19 @@ export const CustomerOrders: React.FC = () => {
               </p>
             )}
             <textarea
-              className="input resize-none mb-2"
+              className="input resize-none"
               rows={3}
-              placeholder="Tell us about your experience (optional)…"
+              maxLength={MAX_REVIEW_LENGTH}
+              placeholder={reviewSvcOrder ? 'Tell us about your experience (optional)…' : 'Tell us about the product (required)…'}
               value={reviewText}
               onChange={e => setReviewText(e.target.value)}
             />
+            <div className="flex items-start justify-between gap-3 mt-1 mb-2">
+              <p className="text-xs text-red-500">
+                {!reviewSvcOrder && reviewText.length > 0 && !reviewText.trim() ? 'Please write a few words about the product.' : ''}
+              </p>
+              <p className="text-xs text-slate-400 flex-shrink-0">{reviewText.length} / {MAX_REVIEW_LENGTH}</p>
+            </div>
             {reviewError && (
               <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">
                 {reviewError}
@@ -641,7 +655,7 @@ export const CustomerOrders: React.FC = () => {
               </button>
               <button
                 onClick={handleSubmitReview}
-                disabled={reviewRating === 0 || submittingReview}
+                disabled={reviewRating === 0 || submittingReview || (!reviewSvcOrder && !reviewText.trim())}
                 className="btn-primary flex-1 justify-center gap-2"
               >
                 {submittingReview ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

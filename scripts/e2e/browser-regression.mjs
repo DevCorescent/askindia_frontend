@@ -15,7 +15,8 @@ for (const url of [APP, API, DB]) {
 }
 // playwright-core is not a project dependency: the runner provides it.
 const { chromium } = await import(process.env.PLAYWRIGHT_CORE ? pathToFileURL(process.env.PLAYWRIGHT_CORE).href : 'playwright-core');
-const sql = (q) => execFileSync('psql', [DB, '-v', 'ON_ERROR_STOP=1', '-At', '-c', q]).toString().trim();
+// psql on Windows ends lines with \r\n.
+const sql = (q) => execFileSync('psql', [DB, '-v', 'ON_ERROR_STOP=1', '-At', '-c', q]).toString().replace(/\r/g, '').trim();
 // Optional screenshots for debugging (never committed).
 const SHOTS = process.env.SHOTS_DIR;
 if (SHOTS) execFileSync('mkdir', ['-p', SHOTS]);
@@ -53,7 +54,8 @@ await page.goto(`${APP}/admin/stores`);
 await page.getByRole('button', { name: /create new store/i }).click();
 await page.getByPlaceholder("e.g. Rahul's Electronics Hub").fill(`UI Store ${RUN}`);
 await page.getByPlaceholder('Your short brand promise').fill('Fresh daily');
-await page.getByPlaceholder('Mumbai').fill('Pune');
+await page.locator('label:has-text("State") + select').selectOption('Maharashtra');
+await page.locator('label:has-text("City") + select').selectOption('Pune');
 await page.getByPlaceholder('Rahul Sharma').fill('Priya Store Manager');
 await page.getByPlaceholder('owner@store.com').fill(`${USERNAME}@test.io`);
 await page.getByPlaceholder('mystore01').fill(USERNAME);
@@ -137,7 +139,7 @@ await page.goto(`${APP}/shop/orders`);
 await page.waitForLoadState('networkidle');
 await page.getByRole('button', { name: /^Rate/ }).first().click();
 await page.locator('.max-w-sm button:has(svg)').nth(4).click(); // 5th star
-await page.getByPlaceholder('Tell us about your experience (optional)…').fill('Loved it!');
+await page.getByPlaceholder('Tell us about the product (required)…').fill('Loved it!');
 await shot('09-customer-review');
 await page.getByRole('button', { name: 'Submit Review' }).click();
 await page.waitForTimeout(1000);
