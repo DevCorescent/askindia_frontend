@@ -157,6 +157,25 @@ export const CustomerCheckout: React.FC = () => {
     setPlacing(true);
     setPlaceError('');
 
+    // Wallet balance check — must happen before any order is created
+    if (payMethod === 'wallet' && isSupabaseConfigured) {
+      try {
+        const walletData = await mutations.getMyWallet();
+        const balance = parseFloat(String(walletData.balance)) || 0;
+        if (balance < total) {
+          setPlaceError(
+            `Insufficient wallet balance. You have ${formatCurrency(balance)} but need ${formatCurrency(total)}. Please add ₹${Math.ceil(total - balance)} to your wallet first.`
+          );
+          setPlacing(false);
+          return;
+        }
+      } catch {
+        setPlaceError('Could not verify wallet balance. Please try again.');
+        setPlacing(false);
+        return;
+      }
+    }
+
     const hasRealSession = isSupabaseConfigured && UUID_RE.test(currentUser?.id ?? '');
 
     const realStores  = stores.filter(s => UUID_RE.test(s.id));
@@ -245,6 +264,15 @@ export const CustomerCheckout: React.FC = () => {
           mutations.updateProfile(currentUser!.id, {
             city: city.trim(), state: addrState, phone: phone.trim() || undefined,
           }).catch(() => {});
+
+          // Debit wallet for wallet payments
+          if (payMethod === 'wallet') {
+            try {
+              await mutations.debitWallet(currentUser!.id, total, `Order #${orderIdRef.current}`);
+            } catch (debitErr) {
+              console.warn('[Checkout] Wallet debit failed:', debitErr);
+            }
+          }
 
           // Redirect to Cashfree for online payment methods (skipped in dev bypass)
           if (!SKIP_PAYMENT && (payMethod === 'upi' || payMethod === 'card')) {
@@ -655,9 +683,17 @@ export const CustomerCheckout: React.FC = () => {
               )}
 
               {placeError && (
-                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
-                  {placeError}
-                </p>
+                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                  <p>{placeError}</p>
+                  {placeError.includes('wallet balance') && (
+                    <a
+                      href="/shop/wallet"
+                      className="inline-block mt-2 text-indigo-600 font-semibold hover:underline"
+                    >
+                      → Add Money to Wallet
+                    </a>
+                  )}
+                </div>
               )}
 
               <div className="flex gap-3">

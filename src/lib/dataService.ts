@@ -409,6 +409,10 @@ export const mutations = {
 
   // ── Wallets ──────────────────────────────────────────────────────────────────
 
+  async getMyWallet(): Promise<{ balance: number; pending: number; total_earned: number; withdrawn: number; transactions: Record<string, unknown>[] }> {
+    return api.get('/wallets/me');
+  },
+
   async creditWallet(userId: string, amount: number, description: string, referenceId?: string): Promise<void> {
     await api.post('/wallets/credit', { userId, amount, description, referenceId: referenceId ?? null });
   },

@@ -36,7 +36,7 @@ const customerNav = [
   { to: '/shop/stores', icon: Store, label: 'Stores', end: false },
   { to: '/shop/cart', icon: ShoppingBag, label: 'Cart', end: false },
   { to: '/shop/orders', icon: ClipboardList, label: 'Orders', end: false },
-  { to: '/shop/account', icon: User, label: 'Account', end: false },
+  { to: '/shop/wallet', icon: Wallet, label: 'Wallet', end: false },
 ];
 
 const agentNav = [
