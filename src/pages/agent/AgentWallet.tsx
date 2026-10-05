@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { formatCurrency, formatDate } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
-import { Wallet, TrendingUp, ArrowDownCircle } from 'lucide-react';
+import { Wallet, TrendingUp, ArrowDownCircle, Plus } from 'lucide-react';
 import clsx from 'clsx';
+import { AddMoneyModal } from '../../components/wallet/AddMoneyModal';
 
 export const AgentWallet: React.FC = () => {
   const { currentUser, orders, serviceOrders, agents, addWithdrawalRequest } = useAppStore();
@@ -13,6 +14,7 @@ export const AgentWallet: React.FC = () => {
   const mySvcOrders = serviceOrders.filter(o => o.agentId === currentUser?.id && o.agentCommission && o.agentCommission > 0);
 
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showAddMoney, setShowAddMoney] = useState(false);
   const [bankAccount, setBankAccount] = useState('');
   const [ifsc, setIfsc] = useState('');
   const [amount, setAmount] = useState('');
@@ -53,9 +55,17 @@ export const AgentWallet: React.FC = () => {
   return (
     <AppLayout title="My Wallet">
       <div className="space-y-6">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">My Wallet</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Track your earnings and withdraw commissions</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">My Wallet</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Track your earnings and withdraw commissions</p>
+          </div>
+          <button
+            onClick={() => setShowAddMoney(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold text-sm transition-colors flex-shrink-0"
+          >
+            <Plus className="h-4 w-4" /> Add Money
+          </button>
         </div>
 
         {/* Balance cards */}
@@ -234,5 +244,6 @@ export const AgentWallet: React.FC = () => {
         </div>
       )}
     </AppLayout>
+    {showAddMoney && <AddMoneyModal onClose={() => setShowAddMoney(false)} />}
   );
 };

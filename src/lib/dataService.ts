@@ -413,6 +413,18 @@ export const mutations = {
     await api.post('/wallets/credit', { userId, amount, description, referenceId: referenceId ?? null });
   },
 
+  async debitWallet(userId: string, amount: number, description: string): Promise<void> {
+    await api.post('/wallets/debit', { userId, amount, description });
+  },
+
+  async adminListWallets(): Promise<Record<string, unknown>[]> {
+    return api.get<Record<string, unknown>[]>('/wallets/admin/all');
+  },
+
+  async walletRecharge(amount: number): Promise<{ paymentSessionId: string; cfOrderId: string }> {
+    return api.post<{ paymentSessionId: string; cfOrderId: string }>('/payments/cashfree/wallet-recharge', { amount });
+  },
+
   // ── User Activities ──────────────────────────────────────────────────────────
 
   async trackActivity(data: Omit<UserActivity, 'id' | 'createdAt'>): Promise<void> {

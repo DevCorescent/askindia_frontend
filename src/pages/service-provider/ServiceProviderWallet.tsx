@@ -6,8 +6,9 @@ import { formatCurrency, formatDate } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
 import {
   Wallet, ArrowDownToLine, TrendingUp, Clock, CheckCircle,
-  IndianRupee, AlertCircle, ShieldCheck,
+  IndianRupee, AlertCircle, ShieldCheck, Plus,
 } from 'lucide-react';
+import { AddMoneyModal } from '../../components/wallet/AddMoneyModal';
 import clsx from 'clsx';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ export const ServiceProviderWallet: React.FC = () => {
   // ─── Modal state ──────────────────────────────────────────────────────────
 
   const [showModal, setShowModal] = useState(false);
+  const [showAddMoney, setShowAddMoney] = useState(false);
   const [amount, setAmount] = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [ifsc, setIfsc] = useState('');
@@ -131,18 +133,26 @@ export const ServiceProviderWallet: React.FC = () => {
               <p className="text-4xl font-extrabold mb-1">{formatCurrency(Math.max(0, available))}</p>
               <p className="text-violet-300 text-xs">Updated in real-time</p>
             </div>
-            <button
-              onClick={openModal}
-              disabled={available < 500}
-              className={clsx(
-                'flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm transition-all self-start',
-                available >= 500
-                  ? 'bg-white text-violet-700 hover:bg-violet-50 shadow-lg'
-                  : 'bg-white/20 text-white/50 cursor-not-allowed'
-              )}>
-              <ArrowDownToLine className="h-4 w-4" />
-              Request Withdrawal
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 self-start">
+              <button
+                onClick={() => setShowAddMoney(true)}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm bg-white/20 hover:bg-white/30 text-white transition-all"
+              >
+                <Plus className="h-4 w-4" /> Add Money
+              </button>
+              <button
+                onClick={openModal}
+                disabled={available < 500}
+                className={clsx(
+                  'flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm transition-all',
+                  available >= 500
+                    ? 'bg-white text-violet-700 hover:bg-violet-50 shadow-lg'
+                    : 'bg-white/20 text-white/50 cursor-not-allowed'
+                )}>
+                <ArrowDownToLine className="h-4 w-4" />
+                Request Withdrawal
+              </button>
+            </div>
           </div>
 
           <div className="relative grid grid-cols-3 gap-4 mt-6 pt-5 border-t border-white/20">
@@ -450,5 +460,6 @@ export const ServiceProviderWallet: React.FC = () => {
         )}
       </Modal>
     </AppLayout>
+    {showAddMoney && <AddMoneyModal onClose={() => setShowAddMoney(false)} />}
   );
 };

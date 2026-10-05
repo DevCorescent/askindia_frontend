@@ -1,6 +1,6 @@
  import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import clsx from 'clsx';
-import { Search, Plus, Edit3, Trash2, UserX, UserCheck, Eye, Shield, Loader2, KeyRound } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, UserX, UserCheck, Eye, EyeOff, Shield, Loader2, KeyRound } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { Modal } from '../../components/ui/Modal';
 import { useAppStore } from '../../store/useAppStore';
@@ -65,6 +65,8 @@ export const AdminUsers: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [resetPassOpen, setResetPassOpen] = useState(false);
   const [newPass, setNewPass] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
 
   // Load real user profiles from the backend
   const refresh = useCallback(async () => {
@@ -308,13 +310,22 @@ export const AdminUsers: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Password <span className="text-red-500">*</span>
             </label>
-            <input
-              className="input w-full"
-              type="password"
-              placeholder={`Minimum ${MIN_PASSWORD_LENGTH} characters`}
-              value={form.password}
-              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-            />
+            <div className="relative">
+              <input
+                className="input w-full pr-10"
+                type={showPass ? 'text' : 'password'}
+                placeholder={`Minimum ${MIN_PASSWORD_LENGTH} characters`}
+                value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -587,13 +598,22 @@ export const AdminUsers: React.FC = () => {
                     <KeyRound className="h-4 w-4" />
                     Set New Password
                   </p>
-                  <input
-                    className="input w-full"
-                    type="password"
-                    placeholder="New password (min 6 characters)"
-                    value={newPass}
-                    onChange={e => setNewPass(e.target.value)}
-                  />
+                  <div className="relative">
+                    <input
+                      className="input w-full pr-10"
+                      type={showNewPass ? 'text' : 'password'}
+                      placeholder="New password (min 6 characters)"
+                      value={newPass}
+                      onChange={e => setNewPass(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPass(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                   {formError && <p className="text-xs text-red-600">{formError}</p>}
                   <div className="flex gap-2">
                     <button

@@ -33,6 +33,8 @@ const AdminUsers      = lazy(() => import('./pages/admin/AdminUsers').then(m => 
 const AdminRoles      = lazy(() => import('./pages/admin/AdminRoles').then(m => ({ default: m.AdminRoles })));
 const AdminInsights   = lazy(() => import('./pages/admin/AdminInsights').then(m => ({ default: m.AdminInsights })));
 const AdminTracking   = lazy(() => import('./pages/admin/AdminTracking').then(m => ({ default: m.AdminTracking })));
+const AdminWallets    = lazy(() => import('./pages/admin/AdminWallets').then(m => ({ default: m.AdminWallets })));
+const WalletRechargeReturn = lazy(() => import('./pages/wallet/WalletRechargeReturn').then(m => ({ default: m.WalletRechargeReturn })));
 
 // Store owner
 const StoreDashboard  = lazy(() => import('./pages/store-owner/StoreDashboard').then(m => ({ default: m.StoreDashboard })));
@@ -141,6 +143,7 @@ export default function App() {
             <Route path="/admin/roles"     element={<ProtectedRoute role="admin"><AdminRoles /></ProtectedRoute>} />
             <Route path="/admin/insights"  element={<ProtectedRoute role="admin"><AdminInsights /></ProtectedRoute>} />
             <Route path="/admin/tracking"  element={<ProtectedRoute role="admin"><AdminTracking /></ProtectedRoute>} />
+            <Route path="/admin/wallets"   element={<ProtectedRoute role="admin"><AdminWallets /></ProtectedRoute>} />
 
             {/* ── Store Owner ────────────────────────────────────────────────── */}
             <Route path="/store"            element={<ProtectedRoute role="store_owner"><StoreDashboard /></ProtectedRoute>} />
@@ -180,6 +183,9 @@ export default function App() {
             <Route path="/agent/services" element={<ProtectedRoute role="agent"><AgentServices /></ProtectedRoute>} />
             <Route path="/agent/orders"   element={<ProtectedRoute role="agent"><AgentOrders /></ProtectedRoute>} />
             <Route path="/agent/wallet"   element={<ProtectedRoute role="agent"><AgentWallet /></ProtectedRoute>} />
+
+            {/* ── Wallet return ──────────────────────────────────────────────── */}
+            <Route path="/wallet/recharge-return" element={<WalletRechargeReturn />} />
 
             {/* ── Fallback ───────────────────────────────────────────────────── */}
             <Route path="*" element={<Navigate to="/" replace />} />

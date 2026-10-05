@@ -21,6 +21,7 @@ const adminLinks = [
   { to: '/admin/tracking', icon: Activity, label: 'Tracking' },
   { to: '/admin/users', icon: Users, label: 'Users' },
   { to: '/admin/roles', icon: ShieldCheck, label: 'Roles & Perms' },
+  { to: '/admin/wallets', icon: Wallet, label: 'Wallets' },
   { to: '/admin/payouts', icon: CreditCard, label: 'Payouts' },
   { to: '/admin/agents', icon: Users, label: 'Agents' },
   { to: '/admin/homepage', icon: Globe, label: 'Homepage' },

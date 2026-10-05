@@ -4,12 +4,14 @@ import { statusBadge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { formatCurrency, formatDate } from '../../data/mockData';
 import { useAppStore } from '../../store/useAppStore';
-import { Wallet, ArrowDownToLine, TrendingUp, Clock, CheckCircle } from 'lucide-react';
+import { Wallet, ArrowDownToLine, TrendingUp, Clock, CheckCircle, Plus } from 'lucide-react';
+import { AddMoneyModal } from '../../components/wallet/AddMoneyModal';
 
 export const StoreWallet: React.FC = () => {
   const { currentUser, stores, orders, withdrawalRequests, addWithdrawalRequest, loadingData, supabaseReady } = useAppStore();
   const myStore = stores.find(s => s.id === currentUser?.storeId);
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showAddMoney, setShowAddMoney] = useState(false);
   const [amount, setAmount] = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [ifsc, setIfsc] = useState('');
@@ -83,8 +85,16 @@ export const StoreWallet: React.FC = () => {
               <p className="text-white/60 text-sm mb-1">Available Balance</p>
               <p className="text-4xl font-extrabold">{formatCurrency(available)}</p>
             </div>
-            <div className="p-3 bg-white/15 rounded-xl">
-              <Wallet className="h-6 w-6" />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowAddMoney(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-semibold text-xs transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add Money
+              </button>
+              <div className="p-3 bg-white/15 rounded-xl">
+                <Wallet className="h-6 w-6" />
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/20">
@@ -246,5 +256,6 @@ export const StoreWallet: React.FC = () => {
         )}
       </Modal>
     </AppLayout>
+    {showAddMoney && <AddMoneyModal onClose={() => setShowAddMoney(false)} />}
   );
 };
