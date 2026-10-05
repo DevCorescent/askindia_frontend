@@ -48,7 +48,7 @@ export const AdminWallets: React.FC = () => {
     try {
       if (!isSupabaseConfigured) { setLoading(false); return; }
       const rows = await mutations.adminListWallets();
-      setWallets(rows as WalletRow[]);
+      setWallets(rows as unknown as WalletRow[]);
     } catch { /* ignore */ }
     setLoading(false);
   };
