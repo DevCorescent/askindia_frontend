@@ -132,11 +132,18 @@ export const AdminUsers: React.FC = () => {
       role: form.role,
       password: form.password,
     });
-    setBusy(false);
     if (!result.success) {
+      setBusy(false);
       setFormError(result.error ?? 'Failed to create user.');
       return;
     }
+    // Auto-create agent record so the agent dashboard works immediately
+    if (form.role === 'agent' && result.userId) {
+      try {
+        await mutations.createAgent(result.userId, { commissionRate: 10, status: 'active' });
+      } catch { /* non-fatal — admin can retry from Agents page */ }
+    }
+    setBusy(false);
     setCreateOpen(false);
     await refresh();
     toast.success(`${ROLE_LABELS[form.role]} "${form.name.trim()}" created`);
