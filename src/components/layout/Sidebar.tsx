@@ -50,6 +50,7 @@ const customerLinks = [
   { to: '/shop/services', icon: Briefcase, label: 'Browse Services' },
   { to: '/shop/cart', icon: ShoppingCart, label: 'My Cart' },
   { to: '/shop/orders', icon: ClipboardList, label: 'My Orders' },
+  { to: '/shop/wallet', icon: Wallet, label: 'My Wallet' },
 ];
 
 const agentLinks = [

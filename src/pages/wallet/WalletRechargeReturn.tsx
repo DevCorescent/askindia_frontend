@@ -15,11 +15,8 @@ export const WalletRechargeReturn: React.FC = () => {
     try { setAmount(sessionStorage.getItem('wlt_recharge_amount')); } catch {}
     if (orderStatus === 'PAID') {
       setStatus('success');
-    } else if (orderStatus === 'FAILED' || orderStatus === 'CANCELLED') {
-      setStatus('failed');
     } else {
-      // Unknown status — treat as success (webhook will credit wallet)
-      setStatus('success');
+      setStatus('failed');
     }
   }, [params]);
 
@@ -28,6 +25,7 @@ export const WalletRechargeReturn: React.FC = () => {
     if (role === 'agent') return '/agent/wallet';
     if (role === 'store_owner') return '/store/wallet';
     if (role === 'service_provider') return '/service-provider/wallet';
+    if (role === 'customer') return '/shop/wallet';
     return '/';
   };
 

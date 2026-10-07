@@ -41,12 +41,14 @@ interface FormData {
   imageColor: string;
   images: string[];
   status: 'active' | 'draft';
+  deliveryPincodes: string[];
 }
 
 const EMPTY_FORM: FormData = {
   name: '', description: '', price: '', mrp: '', stock: '0',
   commission: '10', category: PRODUCT_CATEGORIES[0].name, imageIcon: '📦',
   imageColor: 'from-blue-400 to-blue-600', images: [], status: 'active',
+  deliveryPincodes: [],
 };
 
 export const StoreProducts: React.FC = () => {
@@ -63,6 +65,7 @@ export const StoreProducts: React.FC = () => {
   const [saving, setSaving]           = useState(false);
   const [formError, setFormError]     = useState('');
   const [uploading, setUploading]     = useState(false);
+  const [pincodeInput, setPincodeInput] = useState('');
 
   const [restockId, setRestockId]     = useState<string | null>(null);
   const [restockQty, setRestockQty]   = useState('');
@@ -105,7 +108,12 @@ export const StoreProducts: React.FC = () => {
     mrp && mrp > price ? Math.round((1 - price / mrp) * 100) : null;
 
   // ── Form helpers ──────────────────────────────────────────────────────────
-  const openAdd = () => { setForm(EMPTY_FORM); setEditId(null); setFormError(''); setShowForm(true); };
+  const openAdd = () => {
+    const defaultPin = currentUser?.pinCode ? [currentUser.pinCode] : [];
+    setForm({ ...EMPTY_FORM, deliveryPincodes: defaultPin });
+    setPincodeInput('');
+    setEditId(null); setFormError(''); setShowForm(true);
+  };
   const openEdit = (p: Product) => {
     setForm({
       name:        p.name,
@@ -117,9 +125,11 @@ export const StoreProducts: React.FC = () => {
       category:    p.category ?? CATEGORIES[0],
       imageIcon:   p.imageIcon ?? '📦',
       imageColor:  p.imageColor ?? COLOR_OPTIONS[0],
-      images:      p.images ?? [],
-      status:      p.status === 'out_of_stock' ? 'active' : p.status as 'active' | 'draft',
+      images:           p.images ?? [],
+      status:           p.status === 'out_of_stock' ? 'active' : p.status as 'active' | 'draft',
+      deliveryPincodes: p.deliveryPincodes ?? (currentUser?.pinCode ? [currentUser.pinCode] : []),
     });
+    setPincodeInput('');
     setEditId(p.id);
     setFormError('');
     setShowForm(true);
@@ -174,9 +184,10 @@ export const StoreProducts: React.FC = () => {
         imageIcon:      form.imageIcon || '📦',
         imageColor:     form.imageColor,
         status:         form.status,
-        storeId:        currentUser?.storeId ?? undefined,
-        featured:       false,
-        availableCities: [],
+        storeId:          currentUser?.storeId ?? undefined,
+        featured:         false,
+        availableCities:  [],
+        deliveryPincodes: form.deliveryPincodes,
         tags:           [],
         highlights:     [],
         specifications: [],
@@ -584,6 +595,62 @@ export const StoreProducts: React.FC = () => {
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* Delivery Pincodes */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Delivery Pincodes
+                  <span className="text-xs text-slate-400 font-normal ml-1">(leave empty = available everywhere)</span>
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    className="input flex-1"
+                    placeholder="Enter 6-digit pincode"
+                    value={pincodeInput}
+                    maxLength={6}
+                    onChange={e => setPincodeInput(e.target.value.replace(/\D/g, ''))}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const pin = pincodeInput.trim();
+                        if (pin.length === 6 && !form.deliveryPincodes.includes(pin)) {
+                          setForm(f => ({ ...f, deliveryPincodes: [...f.deliveryPincodes, pin] }));
+                        }
+                        setPincodeInput('');
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const pin = pincodeInput.trim();
+                      if (pin.length === 6 && !form.deliveryPincodes.includes(pin)) {
+                        setForm(f => ({ ...f, deliveryPincodes: [...f.deliveryPincodes, pin] }));
+                      }
+                      setPincodeInput('');
+                    }}
+                    className="btn-secondary px-4"
+                  >
+                    Add
+                  </button>
+                </div>
+                {form.deliveryPincodes.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {form.deliveryPincodes.map(pin => (
+                      <span key={pin} className="inline-flex items-center gap-1 bg-brand-50 text-brand-700 border border-brand-200 rounded-full px-2.5 py-0.5 text-sm font-medium">
+                        {pin}
+                        <button
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, deliveryPincodes: f.deliveryPincodes.filter(p => p !== pin) }))}
+                          className="text-brand-400 hover:text-brand-700 leading-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {formError && (
