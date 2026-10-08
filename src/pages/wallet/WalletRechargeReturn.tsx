@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { mutations } from '../../lib/dataService';
 
 export const WalletRechargeReturn: React.FC = () => {
   const [params] = useSearchParams();
@@ -11,13 +12,31 @@ export const WalletRechargeReturn: React.FC = () => {
   const [amount, setAmount] = useState<string | null>(null);
 
   useEffect(() => {
-    const orderStatus = params.get('order_status');
+    const orderId = params.get('order_id');
     try { setAmount(sessionStorage.getItem('wlt_recharge_amount')); } catch {}
-    if (orderStatus === 'PAID') {
-      setStatus('success');
-    } else {
+
+    if (!orderId) {
       setStatus('failed');
+      return;
     }
+
+    // Verify actual order status from Cashfree via backend
+    mutations.checkCashfreeOrderStatus(orderId)
+      .then(({ orderStatus, orderAmount }) => {
+        if (orderStatus === 'PAID') {
+          // Use the real amount from Cashfree if sessionStorage is missing
+          try {
+            if (!sessionStorage.getItem('wlt_recharge_amount')) {
+              sessionStorage.setItem('wlt_recharge_amount', String(orderAmount));
+              setAmount(String(orderAmount));
+            }
+          } catch {}
+          setStatus('success');
+        } else {
+          setStatus('failed');
+        }
+      })
+      .catch(() => setStatus('failed'));
   }, [params]);
 
   const walletRoute = () => {

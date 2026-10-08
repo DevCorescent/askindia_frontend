@@ -429,6 +429,10 @@ export const mutations = {
     return api.post<{ paymentSessionId: string; cfOrderId: string }>('/payments/cashfree/wallet-recharge', { amount });
   },
 
+  async checkCashfreeOrderStatus(orderId: string): Promise<{ orderStatus: string; orderAmount: number }> {
+    return api.get(`/payments/cashfree/order-status/${encodeURIComponent(orderId)}`);
+  },
+
   // ── User Activities ──────────────────────────────────────────────────────────
 
   async trackActivity(data: Omit<UserActivity, 'id' | 'createdAt'>): Promise<void> {
