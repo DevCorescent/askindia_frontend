@@ -268,9 +268,9 @@ export const CustomerCheckout: React.FC = () => {
           // Debit wallet for wallet payments
           if (payMethod === 'wallet') {
             try {
-              await mutations.debitWallet(currentUser!.id, total, `Order #${orderIdRef.current}`);
+              await mutations.debitWallet(currentUser!.id, total, `Order #${orderIdRef.current}`, orderIdRef.current);
             } catch (debitErr) {
-              console.warn('[Checkout] Wallet debit failed:', debitErr);
+              console.error('[Checkout] Wallet debit failed — order placed but wallet not debited:', debitErr);
             }
           }
 

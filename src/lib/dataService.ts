@@ -417,8 +417,9 @@ export const mutations = {
     await api.post('/wallets/credit', { userId, amount, description, referenceId: referenceId ?? null });
   },
 
-  async debitWallet(userId: string, amount: number, description: string): Promise<void> {
-    await api.post('/wallets/debit', { userId, amount, description });
+  async debitWallet(_userId: string, amount: number, description: string, referenceId?: string): Promise<void> {
+    // Uses /debit-self — backend reads userId from JWT, never from body
+    await api.post('/wallets/debit-self', { amount, description, referenceId });
   },
 
   async adminListWallets(): Promise<Record<string, unknown>[]> {
